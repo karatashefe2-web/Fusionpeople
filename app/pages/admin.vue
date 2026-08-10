@@ -1,15 +1,13 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const yuklemeTipi = ref('tekil') 
-
 const dergiSayfalari = ref([
   { id: 1, ad: 'Kapak', link: '' },
   { id: 2, ad: 'Sayfa 1', link: '' },
   { id: 3, ad: 'Sayfa 2', link: '' },
   { id: 4, ad: 'Arka Kapak', link: '' }
 ])
-
 const pdfLink = ref('')
 const belgeselLink = ref('')
 const landingLink = ref('')
@@ -26,31 +24,37 @@ const convertToDirectLink = (url) => {
   return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
 }
 
+onMounted(async () => {
+  const veri = await $fetch('/api/icerik')
+  if (veri.dergi?.length) dergiSayfalari.value = veri.dergi
+  if (veri.belgesel) belgeselLink.value = veri.belgesel
+  if (veri.landing) landingLink.value = veri.landing
+  if (veri.yuklemeTipi) yuklemeTipi.value = veri.yuklemeTipi
+  if (veri.pdf) pdfLink.value = veri.pdf
+})
+
 const yeniSayfaEkle = () => {
   dergiSayfalari.value.splice(dergiSayfalari.value.length - 1, 0, { 
-    id: Date.now(), 
-    ad: `Sayfa ${dergiSayfalari.value.length - 1}`, 
-    link: '' 
+    id: Date.now(), ad: `Sayfa ${dergiSayfalari.value.length - 1}`, link: '' 
   })
 }
 
-const kaydet = () => {
-  localStorage.setItem('belgeselIcerik', convertToDirectLink(belgeselLink.value))
-  localStorage.setItem('landingIcerik', convertToDirectLink(landingLink.value))
-  localStorage.setItem('yuklemeTipi', yuklemeTipi.value)
+const kaydet = async () => {
+  const islenmisDergi = dergiSayfalari.value.map(s => ({ ...s, gosterimLink: convertToDirectLink(s.link) }))
+  const pdfId = extractDriveId(pdfLink.value)
+  
+  await $fetch('/api/icerik', {
+    method: 'POST',
+    body: {
+      yuklemeTipi: yuklemeTipi.value,
+      dergi: islenmisDergi,
+      pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
+      belgesel: convertToDirectLink(belgeselLink.value),
+      landing: convertToDirectLink(landingLink.value)
+    }
+  })
 
-  if (yuklemeTipi.value === 'tekil') {
-    const islenmisDergi = dergiSayfalari.value.map(sayfa => ({
-      ...sayfa,
-      gosterimLink: convertToDirectLink(sayfa.link)
-    }))
-    localStorage.setItem('dergiIcerik', JSON.stringify(islenmisDergi))
-  } else {
-    const pdfId = extractDriveId(pdfLink.value)
-    localStorage.setItem('pdfIcerik', pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value)
-  }
-
-  basariMesaji.value = 'İçerikler başarıyla kaydedildi! 🚀'
+  basariMesaji.value = 'Veritabanına başarıyla kaydedildi! 🚀'
   setTimeout(() => basariMesaji.value = '', 3000)
 }
 </script>
@@ -114,7 +118,6 @@ const kaydet = () => {
 </template>
 
 <style scoped>
-/* Önceki stil kodlarının tamamı aynı kalacak, buraya yapıştırabilirsin */
 .admin-container { min-height: 100vh; background-color: #f6f5f3; color: #1a1a1a; display: flex; justify-content: center; padding: 4rem 2rem; }
 .admin-panel { background: white; width: 100%; max-width: 800px; padding: 3rem; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
 .admin-title { font-size: 2rem; font-weight: 600; margin-bottom: 0.5rem; }
