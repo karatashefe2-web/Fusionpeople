@@ -2,17 +2,22 @@
 import { ref, onMounted } from 'vue'
 
 const videoLink = ref(null)
+const texts = ref({
+  goBack: '← Go Back',
+  emptyVideo: 'Content not loaded.'
+})
 
 onMounted(async () => {
   const data = await $fetch('/api/icerik')
   if (data.belgesel) videoLink.value = data.belgesel
+  if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
 })
 </script>
 
 <template>
   <div class="video-page">
     <nav class="top-nav">
-      <NuxtLink to="/" class="back-link">← Go Back</NuxtLink>
+      <NuxtLink to="/" class="back-link">{{ texts.goBack }}</NuxtLink>
     </nav>
     <div class="player-wrapper">
       <iframe 
@@ -21,7 +26,7 @@ onMounted(async () => {
         class="video-frame" 
         allowfullscreen="true">
       </iframe>
-      <div v-else class="empty-state">Content not loaded.</div>
+      <div v-else class="empty-state">{{ texts.emptyVideo }}</div>
     </div>
   </div>
 </template>

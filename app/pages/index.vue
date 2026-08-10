@@ -2,23 +2,33 @@
 import { ref, onMounted } from 'vue'
 
 const heroImage = ref('https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=2000&auto=format&fit=crop')
+const texts = ref({
+  siteTitle: 'FUSION PEOPLE',
+  issueDate: 'ISSUE 01 — 2026',
+  mainHeadline: 'DIGITAL<br>CULTURE.',
+  editorTitle: "EDITOR'S NOTE",
+  editorText: 'In the chaos of the modern age, we rediscover the power of simplicity. Aesthetics and functionality combined.',
+  btnMagazine: 'READ ISSUE',
+  btnVideo: 'WATCH'
+})
 
 onMounted(async () => {
   const data = await $fetch('/api/icerik')
   if (data.landing) heroImage.value = data.landing
+  if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
 })
 </script>
 
 <template>
   <div class="editorial-layout">
     <header class="top-bar">
-      <div class="logo">FUSION PEOPLE</div>
-      <div class="date-issue">ISSUE 01 &mdash; 2026</div>
+      <div class="logo">{{ texts.siteTitle }}</div>
+      <div class="date-issue">{{ texts.issueDate }}</div>
     </header>
 
     <main class="grid-container">
       <section class="hero-section">
-        <h1 class="headline">DIGITAL<br>CULTURE.</h1>
+        <h1 class="headline" v-html="texts.mainHeadline"></h1>
         <div class="image-wrapper">
           <img :src="heroImage" alt="Hero" class="main-image" />
         </div>
@@ -26,13 +36,13 @@ onMounted(async () => {
 
       <section class="side-content">
         <div class="editorial-note">
-          <h3>EDITOR'S NOTE</h3>
-          <p>In the chaos of the modern age, we rediscover the power of simplicity. Aesthetics and functionality combined.</p>
+          <h3>{{ texts.editorTitle }}</h3>
+          <p>{{ texts.editorText }}</p>
         </div>
         
         <div class="action-links">
-          <NuxtLink to="/dergi" class="ed-btn">READ ISSUE <span>→</span></NuxtLink>
-          <NuxtLink to="/belgesel" class="ed-btn">WATCH <span>→</span></NuxtLink>
+          <NuxtLink to="/dergi" class="ed-btn">{{ texts.btnMagazine }} <span>→</span></NuxtLink>
+          <NuxtLink to="/belgesel" class="ed-btn">{{ texts.btnVideo }} <span>→</span></NuxtLink>
         </div>
       </section>
     </main>

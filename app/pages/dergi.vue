@@ -3,10 +3,17 @@ import { ref, onMounted, nextTick } from 'vue'
 
 const flipbookRef = ref(null)
 const pages = ref([])
+const texts = ref({
+  goBack: '← Go Back',
+  magazineTopTitle: 'ISSUE 01',
+  emptyMagazine: 'No pages added from the admin panel.'
+})
 
 onMounted(async () => {
   const data = await $fetch('/api/icerik')
   
+  if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
+
   if (data.dergi && data.dergi.length > 0) {
     pages.value = data.dergi.filter(p => p.gosterimLink)
   } else {
@@ -39,8 +46,8 @@ onMounted(async () => {
 <template>
   <div class="magazine-page">
     <nav class="top-nav">
-      <NuxtLink to="/" class="back-link">← Go Back</NuxtLink>
-      <span class="magazine-title">ISSUE 01</span>
+      <NuxtLink to="/" class="back-link">{{ texts.goBack }}</NuxtLink>
+      <span class="magazine-title">{{ texts.magazineTopTitle }}</span>
     </nav>
     
     <main class="reader-container">
@@ -55,7 +62,7 @@ onMounted(async () => {
 
       </div>
       <div v-else class="no-content">
-        No pages added from the admin panel.
+        {{ texts.emptyMagazine }}
       </div>
     </main>
   </div>

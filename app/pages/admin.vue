@@ -1,11 +1,26 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
-// --- PASSWORD & LOGIN CHECKS ---
 const isLoggedIn = ref(false)
 const enteredPassword = ref('')
 const errorMessage = ref('')
 const VALID_PASSWORD = 'fusion2026'
+
+// --- DİNAMİK METİNLER ---
+const texts = ref({
+  siteTitle: 'FUSION PEOPLE',
+  issueDate: 'ISSUE 01 — 2026',
+  mainHeadline: 'DIGITAL<br>CULTURE.',
+  editorTitle: "EDITOR'S NOTE",
+  editorText: 'In the chaos of the modern age, we rediscover the power of simplicity. Aesthetics and functionality combined.',
+  btnMagazine: 'READ ISSUE',
+  btnVideo: 'WATCH',
+  goBack: '← Go Back',
+  magazineTopTitle: 'ISSUE 01',
+  emptyMagazine: 'No pages added from the admin panel.',
+  emptyVideo: 'Content not loaded.'
+})
+// ------------------------
 
 const login = () => {
   if (enteredPassword.value === VALID_PASSWORD) {
@@ -23,7 +38,6 @@ const logout = () => {
   localStorage.removeItem('adminAccess')
   enteredPassword.value = ''
 }
-// ----------------------------------
 
 const uploadType = ref('single') 
 const magazinePages = ref([
@@ -55,6 +69,7 @@ const fetchData = async () => {
   if (data.landing) landingLink.value = data.landing
   if (data.yuklemeTipi) uploadType.value = data.yuklemeTipi
   if (data.pdf) pdfLink.value = data.pdf
+  if (data.siteMetinleri) texts.value = data.siteMetinleri
 }
 
 onMounted(() => {
@@ -81,7 +96,8 @@ const saveAll = async () => {
       dergi: processedMagazine,
       pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
       belgesel: convertToDirectLink(documentaryLink.value),
-      landing: convertToDirectLink(landingLink.value)
+      landing: convertToDirectLink(landingLink.value),
+      siteMetinleri: texts.value
     }
   })
 
@@ -92,46 +108,83 @@ const saveAll = async () => {
 
 <template>
   <div>
-    <!-- LOGIN SCREEN -->
     <div v-if="!isLoggedIn" class="login-container">
       <div class="login-box">
         <h2>FUSION MANAGEMENT</h2>
         <p>Enter your password to continue.</p>
         <div class="input-group">
-          <input 
-            v-model="enteredPassword" 
-            type="password" 
-            placeholder="Password" 
-            class="admin-input"
-            @keyup.enter="login"
-          />
+          <input v-model="enteredPassword" type="password" placeholder="Password" class="admin-input" @keyup.enter="login"/>
         </div>
         <button class="btn-save" @click="login">Log In</button>
         <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
       </div>
     </div>
 
-    <!-- ADMIN PANEL -->
     <div v-else class="admin-container">
       <div class="admin-panel">
         <div class="panel-header">
           <div>
             <h1 class="admin-title">Content Management Panel</h1>
-            <p class="admin-subtitle">Paste your Google Drive links below</p>
+            <p class="admin-subtitle">Manage all links and texts from here</p>
           </div>
           <button class="btn-logout" @click="logout">Log Out</button>
         </div>
 
         <section class="admin-section">
+          <h2>Website Texts (Global)</h2>
+          <div class="input-grid">
+            <div class="input-group">
+              <label>Site Title:</label>
+              <input v-model="texts.siteTitle" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Issue Date / Info:</label>
+              <input v-model="texts.issueDate" type="text" class="admin-input" />
+            </div>
+            <div class="input-group full-width">
+              <label>Main Headline (Use &lt;br&gt; for line breaks):</label>
+              <input v-model="texts.mainHeadline" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Editor's Note Title:</label>
+              <input v-model="texts.editorTitle" type="text" class="admin-input" />
+            </div>
+            <div class="input-group full-width">
+              <label>Editor's Note Text:</label>
+              <textarea v-model="texts.editorText" class="admin-input" rows="3"></textarea>
+            </div>
+            <div class="input-group">
+              <label>Magazine Button Text:</label>
+              <input v-model="texts.btnMagazine" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Video Button Text:</label>
+              <input v-model="texts.btnVideo" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Go Back Button Text:</label>
+              <input v-model="texts.goBack" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Magazine Navbar Title:</label>
+              <input v-model="texts.magazineTopTitle" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Empty Magazine Warning:</label>
+              <input v-model="texts.emptyMagazine" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Empty Video Warning:</label>
+              <input v-model="texts.emptyVideo" type="text" class="admin-input" />
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-section">
           <h2>Homepage Image</h2>
           <div class="input-group">
             <label>Background Image (Drive Link):</label>
-            <input 
-              v-model="landingLink" 
-              type="text" 
-              placeholder="Ex: https://drive.google.com/file/d/.../view" 
-              class="admin-input"
-            />
+            <input v-model="landingLink" type="text" placeholder="Ex: https://drive.google.com/file/d/.../view" class="admin-input" />
           </div>
         </section>
 
@@ -184,7 +237,6 @@ const saveAll = async () => {
 .panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
 .btn-logout { background: none; border: 1px solid #111; color: #111; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
 .btn-logout:hover { background: #111; color: white; }
-
 .admin-container { min-height: 100vh; background-color: #f4f4f0; color: #1a1a1a; display: flex; justify-content: center; padding: 4rem 2rem; }
 .admin-panel { background: white; width: 100%; max-width: 800px; padding: 3rem; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
 .admin-title { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
@@ -194,13 +246,16 @@ const saveAll = async () => {
 .tab-buttons { display: flex; gap: 1rem; margin-bottom: 2rem; }
 .tab-btn { padding: 0.8rem 1.5rem; background: #f6f5f3; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-weight: 600; color: #86868b; transition: all 0.2s; }
 .tab-btn.active { background: #111; color: white; border-color: #111; }
-.input-group { margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; text-align: left; }
-.input-group label { font-weight: 600; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
-.admin-input { padding: 1rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s; width: 100%; box-sizing: border-box; }
+.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.full-width { grid-column: 1 / -1; }
+.input-group { display: flex; flex-direction: column; gap: 0.5rem; text-align: left; }
+.input-group label { font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #666; }
+.admin-input { padding: 1rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s; width: 100%; box-sizing: border-box; font-family: inherit; }
 .admin-input:focus { outline: none; border-color: #111; }
-.btn-add-page { background: none; border: 1px dashed #111; color: #111; padding: 0.8rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+textarea.admin-input { resize: vertical; }
+.btn-add-page { background: none; border: 1px dashed #111; color: #111; padding: 0.8rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; margin-top: 1rem; }
 .btn-add-page:hover { background: #111; color: white; }
-.action-bar { display: flex; align-items: center; gap: 2rem; }
+.action-bar { display: flex; align-items: center; gap: 2rem; margin-top: 2rem; }
 .btn-save { background: #111; color: white; border: none; padding: 1rem 3rem; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; width: 100%; }
 .btn-save:hover { background: #333; }
 .success-msg { color: #34c759; font-weight: 600; }
