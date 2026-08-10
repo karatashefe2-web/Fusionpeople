@@ -5,16 +5,16 @@ const flipbookRef = ref(null)
 const pages = ref([])
 
 onMounted(async () => {
-  const veri = await $fetch('/api/icerik')
+  const data = await $fetch('/api/icerik')
   
-  if (veri.dergi && veri.dergi.length > 0) {
-    pages.value = veri.dergi.filter(p => p.gosterimLink)
+  if (data.dergi && data.dergi.length > 0) {
+    pages.value = data.dergi.filter(p => p.gosterimLink)
   } else {
     pages.value = [
-      { id: 1, ad: 'Kapak', gosterimLink: null },
-      { id: 2, ad: 'Sayfa 1', gosterimLink: null },
-      { id: 3, ad: 'Sayfa 2', gosterimLink: null },
-      { id: 4, ad: 'Arka Kapak', gosterimLink: null }
+      { id: 1, name: 'Cover', gosterimLink: null },
+      { id: 2, name: 'Page 1', gosterimLink: null },
+      { id: 3, name: 'Page 2', gosterimLink: null },
+      { id: 4, name: 'Back Cover', gosterimLink: null }
     ]
   }
 
@@ -39,23 +39,23 @@ onMounted(async () => {
 <template>
   <div class="magazine-page">
     <nav class="top-nav">
-      <NuxtLink to="/" class="back-link">← Geri Dön</NuxtLink>
-      <span class="magazine-title">SAYI 01</span>
+      <NuxtLink to="/" class="back-link">← Go Back</NuxtLink>
+      <span class="magazine-title">ISSUE 01</span>
     </nav>
     
     <main class="reader-container">
       <div v-if="pages.length > 0" ref="flipbookRef" class="flip-book">
         
-        <div v-for="(sayfa, index) in pages" :key="sayfa.id" class="my-page">
+        <div v-for="(page, index) in pages" :key="page.id" class="my-page">
           <div :class="['page-content', { 'cover': index === 0 || index === pages.length - 1 }]">
-            <img v-if="sayfa.gosterimLink" :src="sayfa.gosterimLink" :alt="sayfa.ad" />
-            <h2 v-else>{{ sayfa.ad }}</h2>
+            <img v-if="page.gosterimLink" :src="page.gosterimLink" :alt="page.name" />
+            <h2 v-else>{{ page.name }}</h2>
           </div>
         </div>
 
       </div>
       <div v-else class="no-content">
-        Admin panelinden sayfa eklenmedi.
+        No pages added from the admin panel.
       </div>
     </main>
   </div>

@@ -1,41 +1,41 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
-// --- ŞİFRE VE GİRİŞ KONTROLLERİ ---
-const girisBasarili = ref(false)
-const girilenSifre = ref('')
-const hataMesaji = ref('')
-const GECERLI_SIFRE = 'fusion2026' // Şifreni buradan değiştirebilirsin
+// --- PASSWORD & LOGIN CHECKS ---
+const isLoggedIn = ref(false)
+const enteredPassword = ref('')
+const errorMessage = ref('')
+const VALID_PASSWORD = 'fusion2026'
 
-const girisYap = () => {
-  if (girilenSifre.value === GECERLI_SIFRE) {
-    girisBasarili.value = true
-    localStorage.setItem('adminYetkisi', 'aktif')
-    veriCek() // Şifre doğruysa verileri çek
+const login = () => {
+  if (enteredPassword.value === VALID_PASSWORD) {
+    isLoggedIn.value = true
+    localStorage.setItem('adminAccess', 'active')
+    fetchData()
   } else {
-    hataMesaji.value = 'Hatalı şifre, tekrar dene.'
-    setTimeout(() => hataMesaji.value = '', 3000)
+    errorMessage.value = 'Incorrect password, please try again.'
+    setTimeout(() => errorMessage.value = '', 3000)
   }
 }
 
-const cikisYap = () => {
-  girisBasarili.value = false
-  localStorage.removeItem('adminYetkisi')
-  girilenSifre.value = ''
+const logout = () => {
+  isLoggedIn.value = false
+  localStorage.removeItem('adminAccess')
+  enteredPassword.value = ''
 }
 // ----------------------------------
 
-const yuklemeTipi = ref('tekil') 
-const dergiSayfalari = ref([
-  { id: 1, ad: 'Kapak', link: '' },
-  { id: 2, ad: 'Sayfa 1', link: '' },
-  { id: 3, ad: 'Sayfa 2', link: '' },
-  { id: 4, ad: 'Arka Kapak', link: '' }
+const uploadType = ref('single') 
+const magazinePages = ref([
+  { id: 1, name: 'Cover', link: '' },
+  { id: 2, name: 'Page 1', link: '' },
+  { id: 3, name: 'Page 2', link: '' },
+  { id: 4, name: 'Back Cover', link: '' }
 ])
 const pdfLink = ref('')
-const belgeselLink = ref('')
+const documentaryLink = ref('')
 const landingLink = ref('')
-const basariMesaji = ref('')
+const successMessage = ref('')
 
 const extractDriveId = (url) => {
   if (!url) return null;
@@ -48,128 +48,127 @@ const convertToDirectLink = (url) => {
   return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
 }
 
-const veriCek = async () => {
-  const veri = await $fetch('/api/icerik')
-  if (veri.dergi?.length) dergiSayfalari.value = veri.dergi
-  if (veri.belgesel) belgeselLink.value = veri.belgesel
-  if (veri.landing) landingLink.value = veri.landing
-  if (veri.yuklemeTipi) yuklemeTipi.value = veri.yuklemeTipi
-  if (veri.pdf) pdfLink.value = veri.pdf
+const fetchData = async () => {
+  const data = await $fetch('/api/icerik')
+  if (data.dergi?.length) magazinePages.value = data.dergi
+  if (data.belgesel) documentaryLink.value = data.belgesel
+  if (data.landing) landingLink.value = data.landing
+  if (data.yuklemeTipi) uploadType.value = data.yuklemeTipi
+  if (data.pdf) pdfLink.value = data.pdf
 }
 
 onMounted(() => {
-  // Sayfa yüklendiğinde daha önce giriş yapılmış mı kontrol et
-  if (localStorage.getItem('adminYetkisi') === 'aktif') {
-    girisBasarili.value = true
-    veriCek()
+  if (localStorage.getItem('adminAccess') === 'active') {
+    isLoggedIn.value = true
+    fetchData()
   }
 })
 
-const yeniSayfaEkle = () => {
-  dergiSayfalari.value.splice(dergiSayfalari.value.length - 1, 0, { 
-    id: Date.now(), ad: `Sayfa ${dergiSayfalari.value.length - 1}`, link: '' 
+const addNewPage = () => {
+  magazinePages.value.splice(magazinePages.value.length - 1, 0, { 
+    id: Date.now(), name: `Page ${magazinePages.value.length - 1}`, link: '' 
   })
 }
 
-const kaydet = async () => {
-  const islenmisDergi = dergiSayfalari.value.map(s => ({ ...s, gosterimLink: convertToDirectLink(s.link) }))
+const saveAll = async () => {
+  const processedMagazine = magazinePages.value.map(p => ({ ...p, gosterimLink: convertToDirectLink(p.link) }))
   const pdfId = extractDriveId(pdfLink.value)
   
   await $fetch('/api/icerik', {
     method: 'POST',
     body: {
-      yuklemeTipi: yuklemeTipi.value,
-      dergi: islenmisDergi,
+      yuklemeTipi: uploadType.value,
+      dergi: processedMagazine,
       pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
-      belgesel: convertToDirectLink(belgeselLink.value),
+      belgesel: convertToDirectLink(documentaryLink.value),
       landing: convertToDirectLink(landingLink.value)
     }
   })
 
-  basariMesaji.value = 'Veritabanına başarıyla kaydedildi! 🚀'
-  setTimeout(() => basariMesaji.value = '', 3000)
+  successMessage.value = 'Successfully saved to database! 🚀'
+  setTimeout(() => successMessage.value = '', 3000)
 }
 </script>
 
 <template>
   <div>
-    <!-- ŞİFRE EKRANI -->
-    <div v-if="!girisBasarili" class="login-container">
+    <!-- LOGIN SCREEN -->
+    <div v-if="!isLoggedIn" class="login-container">
       <div class="login-box">
-        <h2>FUSION YÖNETİM</h2>
-        <p>Devam etmek için şifrenizi girin.</p>
+        <h2>FUSION MANAGEMENT</h2>
+        <p>Enter your password to continue.</p>
         <div class="input-group">
           <input 
-            v-model="girilenSifre" 
+            v-model="enteredPassword" 
             type="password" 
-            placeholder="Şifre" 
+            placeholder="Password" 
             class="admin-input"
-            @keyup.enter="girisYap"
+            @keyup.enter="login"
           />
         </div>
-        <button class="btn-save" @click="girisYap">Giriş Yap</button>
-        <p v-if="hataMesaji" class="error-msg">{{ hataMesaji }}</p>
+        <button class="btn-save" @click="login">Log In</button>
+        <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
       </div>
     </div>
 
-    <!-- YÖNETİM PANELİ (Şifre doğruysa görünür) -->
+    <!-- ADMIN PANEL -->
     <div v-else class="admin-container">
       <div class="admin-panel">
         <div class="panel-header">
           <div>
-            <h1 class="admin-title">İçerik Yönetim Paneli</h1>
-            <p class="admin-subtitle">Google Drive linklerini buraya yapıştırın</p>
+            <h1 class="admin-title">Content Management Panel</h1>
+            <p class="admin-subtitle">Paste your Google Drive links below</p>
           </div>
-          <button class="btn-logout" @click="cikisYap">Çıkış Yap</button>
+          <button class="btn-logout" @click="logout">Log Out</button>
         </div>
 
         <section class="admin-section">
-          <h2>Ana Sayfa Görseli</h2>
+          <h2>Homepage Image</h2>
           <div class="input-group">
-            <label>Arka Plan Görseli (Drive Linki):</label>
+            <label>Background Image (Drive Link):</label>
             <input 
               v-model="landingLink" 
               type="text" 
-              placeholder="Örn: https://drive.google.com/file/d/.../view" 
+              placeholder="Ex: https://drive.google.com/file/d/.../view" 
               class="admin-input"
             />
           </div>
         </section>
 
         <section class="admin-section">
-          <h2>Dergi Yükleme Seçeneği</h2>
+          <h2>Magazine Upload Option</h2>
           <div class="tab-buttons">
-            <button :class="['tab-btn', { active: yuklemeTipi === 'tekil' }]" @click="yuklemeTipi = 'tekil'">Görsellerle (Tek Tek)</button>
-            <button :class="['tab-btn', { active: yuklemeTipi === 'pdf' }]" @click="yuklemeTipi = 'pdf'">Tek PDF Dosyası</button>
+            <button :class="['tab-btn', { active: uploadType === 'single' }]" @click="uploadType = 'single'">Images (One by One)</button>
+            <button :class="['tab-btn', { active: uploadType === 'pdf' }]" @click="uploadType = 'pdf'">Single PDF File</button>
           </div>
 
-          <div v-if="yuklemeTipi === 'tekil'" class="tab-content">
-            <div v-for="sayfa in dergiSayfalari" :key="sayfa.id" class="input-group">
-              <label>{{ sayfa.ad }} (Drive Linki):</label>
-              <input v-model="sayfa.link" type="text" class="admin-input" />
+          <div v-if="uploadType === 'single'" class="tab-content">
+            <div v-for="page in magazinePages" :key="page.id" class="input-group">
+              <label>{{ page.name }} (Drive Link):</label>
+              <input v-model="page.link" type="text" class="admin-input" />
             </div>
-            <button class="btn-add-page" @click="yeniSayfaEkle">+ Yeni Sayfa Ekle</button>
+            <button class="btn-add-page" @click="addNewPage">+ Add New Page</button>
           </div>
 
-          <div v-if="yuklemeTipi === 'pdf'" class="tab-content">
+          <div v-if="uploadType === 'pdf'" class="tab-content">
             <div class="input-group">
-              <label>PDF Dosyası (Drive Linki):</label>
+              <label>PDF File (Drive Link):</label>
               <input v-model="pdfLink" type="text" class="admin-input" />
             </div>
           </div>
         </section>
 
         <section class="admin-section">
-          <h2>Belgesel / Video</h2>
+          <h2>Documentary / Video</h2>
           <div class="input-group">
-            <label>Video (Drive Linki):</label>
-            <input v-model="belgeselLink" type="text" class="admin-input" />
+            <label>Video (Drive Link):</label>
+            <input v-model="documentaryLink" type="text" class="admin-input" />
           </div>
         </section>
 
         <div class="action-bar">
-          <button class="btn-save" @click="kaydet">Tümünü Kaydet</button>
-          <span v-if="basariMesaji" class="success-msg">{{ basariMesaji }}</span>
+          <button class="btn-save" @click="saveAll">Save All</button>
+          <span v-if="successMessage" class="success-msg">{{ successMessage }}</span>
         </div>
       </div>
     </div>
@@ -177,7 +176,6 @@ const kaydet = async () => {
 </template>
 
 <style scoped>
-/* GİRİŞ EKRANI STİLLERİ */
 .login-container { min-height: 100vh; background-color: #f4f4f0; display: flex; justify-content: center; align-items: center; color: #111; }
 .login-box { background: white; padding: 4rem; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.08); text-align: center; width: 100%; max-width: 400px; }
 .login-box h2 { font-size: 1.5rem; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
@@ -187,7 +185,6 @@ const kaydet = async () => {
 .btn-logout { background: none; border: 1px solid #111; color: #111; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
 .btn-logout:hover { background: #111; color: white; }
 
-/* MEVCUT PANEL STİLLERİ */
 .admin-container { min-height: 100vh; background-color: #f4f4f0; color: #1a1a1a; display: flex; justify-content: center; padding: 4rem 2rem; }
 .admin-panel { background: white; width: 100%; max-width: 800px; padding: 3rem; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
 .admin-title { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em; }

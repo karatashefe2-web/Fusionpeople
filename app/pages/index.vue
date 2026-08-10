@@ -4,8 +4,8 @@ import { ref, onMounted } from 'vue'
 const heroImage = ref('https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=2000&auto=format&fit=crop')
 
 onMounted(async () => {
-  const veri = await $fetch('/api/icerik')
-  if (veri.landing) heroImage.value = veri.landing
+  const data = await $fetch('/api/icerik')
+  if (data.landing) heroImage.value = data.landing
 })
 </script>
 
@@ -13,12 +13,12 @@ onMounted(async () => {
   <div class="editorial-layout">
     <header class="top-bar">
       <div class="logo">FUSION PEOPLE</div>
-      <div class="date-issue">SAYI 01 &mdash; 2026</div>
+      <div class="date-issue">ISSUE 01 &mdash; 2026</div>
     </header>
 
     <main class="grid-container">
       <section class="hero-section">
-        <h1 class="headline">DİJİTAL<br>KÜLTÜR.</h1>
+        <h1 class="headline">DIGITAL<br>CULTURE.</h1>
         <div class="image-wrapper">
           <img :src="heroImage" alt="Hero" class="main-image" />
         </div>
@@ -26,13 +26,13 @@ onMounted(async () => {
 
       <section class="side-content">
         <div class="editorial-note">
-          <h3>EDİTÖRÜN NOTU</h3>
-          <p>Modern çağın karmaşasında, sadeliğin gücünü yeniden keşfediyoruz. Estetik ve işlevsellik bir arada.</p>
+          <h3>EDITOR'S NOTE</h3>
+          <p>In the chaos of the modern age, we rediscover the power of simplicity. Aesthetics and functionality combined.</p>
         </div>
         
         <div class="action-links">
-          <NuxtLink to="/dergi" class="ed-btn">SAYIYI OKU <span>→</span></NuxtLink>
-          <NuxtLink to="/belgesel" class="ed-btn">İZLE <span>→</span></NuxtLink>
+          <NuxtLink to="/dergi" class="ed-btn">READ ISSUE <span>→</span></NuxtLink>
+          <NuxtLink to="/belgesel" class="ed-btn">WATCH <span>→</span></NuxtLink>
         </div>
       </section>
     </main>
