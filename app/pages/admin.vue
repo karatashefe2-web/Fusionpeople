@@ -6,8 +6,9 @@ const enteredPassword = ref('')
 const errorMessage = ref('')
 const VALID_PASSWORD = 'fusion2026'
 
-// --- DİNAMİK METİNLER ---
 const texts = ref({
+  seoTitle: 'FUSION PEOPLE',
+  seoDescription: '',
   siteTitle: 'FUSION PEOPLE',
   issueDate: 'ISSUE 01 — 2026',
   mainHeadline: 'DIGITAL<br>CULTURE.',
@@ -20,7 +21,6 @@ const texts = ref({
   emptyMagazine: 'No pages added from the admin panel.',
   emptyVideo: 'Content not loaded.'
 })
-// ------------------------
 
 const login = () => {
   if (enteredPassword.value === VALID_PASSWORD) {
@@ -49,6 +49,7 @@ const magazinePages = ref([
 const pdfLink = ref('')
 const documentaryLink = ref('')
 const landingLink = ref('')
+const landingVideoLink = ref('')
 const successMessage = ref('')
 
 const extractDriveId = (url) => {
@@ -62,11 +63,17 @@ const convertToDirectLink = (url) => {
   return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
 }
 
+const convertToVideoEmbed = (url) => {
+  const id = extractDriveId(url);
+  return id ? `https://drive.google.com/file/d/${id}/preview?autoplay=1&mute=1&controls=0&loop=1` : url;
+}
+
 const fetchData = async () => {
   const data = await $fetch('/api/icerik')
   if (data.dergi?.length) magazinePages.value = data.dergi
   if (data.belgesel) documentaryLink.value = data.belgesel
   if (data.landing) landingLink.value = data.landing
+  if (data.landingVideo) landingVideoLink.value = data.landingVideo
   if (data.yuklemeTipi) uploadType.value = data.yuklemeTipi
   if (data.pdf) pdfLink.value = data.pdf
   if (data.siteMetinleri) texts.value = data.siteMetinleri
@@ -97,6 +104,7 @@ const saveAll = async () => {
       pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
       belgesel: convertToDirectLink(documentaryLink.value),
       landing: convertToDirectLink(landingLink.value),
+      landingVideo: convertToVideoEmbed(landingVideoLink.value),
       siteMetinleri: texts.value
     }
   })
@@ -133,6 +141,18 @@ const saveAll = async () => {
         <section class="admin-section">
           <h2>Website Texts (Global)</h2>
           <div class="input-grid">
+            
+            <!-- YENİ EKLENEN SEO METİNLERİ -->
+            <div class="input-group">
+              <label>Browser Tab Title (SEO):</label>
+              <input v-model="texts.seoTitle" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Site Description (SEO):</label>
+              <input v-model="texts.seoDescription" type="text" class="admin-input" />
+            </div>
+            <!-- ------------------------- -->
+
             <div class="input-group">
               <label>Site Title:</label>
               <input v-model="texts.siteTitle" type="text" class="admin-input" />
@@ -169,22 +189,21 @@ const saveAll = async () => {
               <label>Magazine Navbar Title:</label>
               <input v-model="texts.magazineTopTitle" type="text" class="admin-input" />
             </div>
-            <div class="input-group">
-              <label>Empty Magazine Warning:</label>
-              <input v-model="texts.emptyMagazine" type="text" class="admin-input" />
-            </div>
-            <div class="input-group">
-              <label>Empty Video Warning:</label>
-              <input v-model="texts.emptyVideo" type="text" class="admin-input" />
-            </div>
           </div>
         </section>
 
         <section class="admin-section">
-          <h2>Homepage Image</h2>
+          <h2>Homepage Background (Hero)</h2>
+          <p style="font-size: 0.85rem; color: #666; margin-bottom: 1rem;">
+            * If you upload a video, it will play behind the texts. The image will act as a backup.
+          </p>
+          <div class="input-group">
+            <label>Background Video (Drive Link - Optional):</label>
+            <input v-model="landingVideoLink" type="text" class="admin-input" />
+          </div>
           <div class="input-group">
             <label>Background Image (Drive Link):</label>
-            <input v-model="landingLink" type="text" placeholder="Ex: https://drive.google.com/file/d/.../view" class="admin-input" />
+            <input v-model="landingLink" type="text" class="admin-input" />
           </div>
         </section>
 
@@ -212,7 +231,7 @@ const saveAll = async () => {
         </section>
 
         <section class="admin-section">
-          <h2>Documentary / Video</h2>
+          <h2>Documentary / Video Page</h2>
           <div class="input-group">
             <label>Video (Drive Link):</label>
             <input v-model="documentaryLink" type="text" class="admin-input" />
@@ -240,15 +259,15 @@ const saveAll = async () => {
 .admin-container { min-height: 100vh; background-color: #f4f4f0; color: #1a1a1a; display: flex; justify-content: center; padding: 4rem 2rem; }
 .admin-panel { background: white; width: 100%; max-width: 800px; padding: 3rem; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
 .admin-title { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
-.admin-subtitle { color: #86868b; }
+.admin-subtitle { color: #86868b; margin-bottom: 2rem; }
 .admin-section { margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 1px solid #eee; }
-.admin-section h2 { font-size: 1.1rem; margin-bottom: 1.5rem; color: #111; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+.admin-section h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #111; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
 .tab-buttons { display: flex; gap: 1rem; margin-bottom: 2rem; }
 .tab-btn { padding: 0.8rem 1.5rem; background: #f6f5f3; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-weight: 600; color: #86868b; transition: all 0.2s; }
 .tab-btn.active { background: #111; color: white; border-color: #111; }
 .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 .full-width { grid-column: 1 / -1; }
-.input-group { display: flex; flex-direction: column; gap: 0.5rem; text-align: left; }
+.input-group { display: flex; flex-direction: column; gap: 0.5rem; text-align: left; margin-bottom: 1rem;}
 .input-group label { font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #666; }
 .admin-input { padding: 1rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s; width: 100%; box-sizing: border-box; font-family: inherit; }
 .admin-input:focus { outline: none; border-color: #111; }

@@ -9,6 +9,7 @@ export default defineEventHandler(async (event) => {
     if (body.dergi !== undefined) await redis.set('dergiIcerik', body.dergi)
     if (body.belgesel !== undefined) await redis.set('belgeselIcerik', body.belgesel)
     if (body.landing !== undefined) await redis.set('landingIcerik', body.landing)
+    if (body.landingVideo !== undefined) await redis.set('landingVideo', body.landingVideo)
     if (body.yuklemeTipi !== undefined) await redis.set('yuklemeTipi', body.yuklemeTipi)
     if (body.pdf !== undefined) await redis.set('pdfIcerik', body.pdf)
     if (body.siteMetinleri !== undefined) await redis.set('siteMetinleri', body.siteMetinleri)

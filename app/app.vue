@@ -1,18 +1,18 @@
 <script setup>
+// Veritabanından verileri sunucu tarafında (SSR) çekiyoruz ki Google botları görebilsin
+const { data } = await useFetch('/api/icerik')
+
+const seoTitle = data.value?.siteMetinleri?.seoTitle || 'FUSION PEOPLE'
+const seoDesc = data.value?.siteMetinleri?.seoDescription || ''
+
+useHead({
+  title: seoTitle,
+  meta: [
+    { name: 'description', content: seoDesc }
+  ]
+})
 </script>
 
 <template>
-  <div>
-    <NuxtPage />
-  </div>
+  <NuxtPage />
 </template>
-<style>
-body {
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  margin: 0;
-}
-
-h1, h2, h3, h4, h5, h6, strong, b {
-  font-weight: 700;
-}
-</style>
