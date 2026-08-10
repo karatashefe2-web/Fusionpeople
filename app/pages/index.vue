@@ -1,85 +1,145 @@
 <script setup>
+import { ref, onMounted } from 'vue'
+
+const heroImage = ref('https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=2000&auto=format&fit=crop')
+
+onMounted(() => {
+  const savedLanding = localStorage.getItem('landingIcerik')
+  if (savedLanding) heroImage.value = savedLanding
+})
 </script>
 
-
 <template>
-  <div class="landing-page">
-    <header class="header">
-      <div class="logo">PAGERIE</div>
+  <div class="editorial-layout">
+    <header class="top-bar">
+      <div class="logo">FUSION PEOPLE</div>
+      <div class="date-issue">SAYI 01 &mdash; 2026</div>
     </header>
-    
-    <section class="hero">
-      <div class="hero-image-container">
-        <!-- Hatayı çözen kısım: Gerçek bir web görseli linki verdik -->
-        <img src="https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=2000&auto=format&fit=crop" alt="Hero Image" class="hero-image" />
-        <h1 class="hero-title">PAGERIE</h1>
-      </div>
-    </section>
 
-    <section class="action-buttons">
-      <NuxtLink to="/dergi" class="btn-outline">Dergiyi Keşfet</NuxtLink>
-      <NuxtLink to="/belgesel" class="btn-outline">Belgeseli İzle</NuxtLink>
-    </section>
+    <main class="grid-container">
+      <section class="hero-section">
+        <h1 class="headline">DİJİTAL<br>KÜLTÜR.</h1>
+        <div class="image-wrapper">
+          <img :src="heroImage" alt="Hero" class="main-image" />
+        </div>
+      </section>
+
+      <section class="side-content">
+        <div class="editorial-note">
+          <h3>EDİTÖRÜN NOTU</h3>
+          <p>Modern çağın karmaşasında, sadeliğin gücünü yeniden keşfediyoruz. Estetik ve işlevsellik bir arada.</p>
+        </div>
+        
+        <div class="action-links">
+          <NuxtLink to="/dergi" class="ed-btn">SAYIYI OKU <span>→</span></NuxtLink>
+          <NuxtLink to="/belgesel" class="ed-btn">İZLE <span>→</span></NuxtLink>
+        </div>
+      </section>
+    </main>
   </div>
 </template>
 
 <style scoped>
-.header {
+.editorial-layout {
+  min-height: 100vh;
+  background-color: #f4f4f0;
+  color: #111;
   padding: 2rem;
-  text-align: center;
-}
-.logo {
-  font-size: 1.5rem;
-  letter-spacing: 0.2em;
-}
-.hero {
-  position: relative;
-  width: 100%;
-  height: 80vh; 
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+  border-bottom: 2px solid #111;
+  padding-bottom: 1rem;
+  margin-bottom: 3rem;
+}
+
+.logo {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.date-issue {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 4rem;
+  flex: 1;
+}
+
+.headline {
+  font-size: clamp(4rem, 8vw, 8rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  margin: 0 0 2rem 0;
+}
+
+.image-wrapper {
+  width: 100%;
+  height: 60vh;
   overflow: hidden;
 }
-.hero-image-container {
+
+.main-image {
   width: 100%;
   height: 100%;
-  position: relative;
+  object-fit: cover;
+  filter: grayscale(20%) contrast(1.1);
+}
+
+.side-content {
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  justify-content: space-between;
+  border-left: 1px solid #dcdcd8;
+  padding-left: 4rem;
 }
-.hero-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; 
-}
-.hero-title {
-  position: absolute;
-  font-size: 5rem;
-  color: white;
-  letter-spacing: 0.3em;
-  font-weight: 300;
-  margin: 0;
-}
-.action-buttons {
-  display: flex;
-  gap: 2rem;
-  justify-content: center;
-  padding: 4rem 0;
-}
-.btn-outline {
-  padding: 1rem 2rem;
-  border: 1px solid var(--text-color);
-  background: transparent;
-  color: var(--text-color);
-  text-decoration: none;
+
+.editorial-note h3 {
+  font-size: 0.9rem;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  transition: all 0.3s ease;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #111;
+  display: inline-block;
 }
-.btn-outline:hover {
-  background-color: var(--text-color);
-  color: white;
+
+.editorial-note p {
+  font-size: 1.4rem;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.action-links {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ed-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background: #111;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  text-transform: uppercase;
+  transition: background 0.3s;
+}
+
+.ed-btn:hover {
+  background: #333;
 }
 </style>
