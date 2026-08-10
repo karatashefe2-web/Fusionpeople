@@ -2,7 +2,14 @@ import { Redis } from '@upstash/redis'
 
 export default defineEventHandler(async (event) => {
   try {
-    const redis = Redis.fromEnv()
+    if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+      throw new Error('Vercel ortam değişkenleri bulunamadı! Vercel panelinden şifreleri kontrol et.')
+    }
+
+    const redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN
+    })
     const body = await readBody(event)
 
     if (body.dergi !== undefined) await redis.set('dergiIcerik', body.dergi)
@@ -14,7 +21,7 @@ export default defineEventHandler(async (event) => {
     if (body.siteMetinleri !== undefined) await redis.set('siteMetinleri', body.siteMetinleri)
 
     return { success: true }
-  } catch (error) {
-    return { success: false, error: 'Veritabanına yazılamadı. Şifreler eksik olabilir.' }
+  } catch (error: any) {
+    return { success: false, error: 'POST Hatası: ' + (error.message || 'Bilinmeyen hata') }
   }
 })

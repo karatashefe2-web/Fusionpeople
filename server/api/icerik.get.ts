@@ -2,7 +2,10 @@ import { Redis } from '@upstash/redis'
 
 export default defineEventHandler(async () => {
   try {
-    const redis = Redis.fromEnv()
+    const redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL || '',
+      token: process.env.UPSTASH_REDIS_REST_TOKEN || ''
+    })
     const dergi = await redis.get('dergiIcerik') || []
     const belgesel = await redis.get('belgeselIcerik') || ''
     const landing = await redis.get('landingIcerik') || ''
@@ -12,7 +15,7 @@ export default defineEventHandler(async () => {
     const siteMetinleri = await redis.get('siteMetinleri') || null
 
     return { dergi, belgesel, landing, landingVideo, yuklemeTipi, pdf, siteMetinleri }
-  } catch (error) {
-    return { error: 'Veritabanına bağlanılamadı. Şifreler eksik olabilir.' }
+  } catch (error: any) {
+    return { error: 'GET Hatası: ' + (error.message || 'Bilinmeyen hata') }
   }
 })
