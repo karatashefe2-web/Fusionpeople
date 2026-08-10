@@ -93,24 +93,32 @@ const addNewPage = () => {
 }
 
 const saveAll = async () => {
-  const processedMagazine = magazinePages.value.map(p => ({ ...p, gosterimLink: convertToDirectLink(p.link) }))
-  const pdfId = extractDriveId(pdfLink.value)
-  
-  await $fetch('/api/icerik', {
-    method: 'POST',
-    body: {
-      yuklemeTipi: uploadType.value,
-      dergi: processedMagazine,
-      pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
-      belgesel: convertToDirectLink(documentaryLink.value),
-      landing: convertToDirectLink(landingLink.value),
-      landingVideo: convertToVideoEmbed(landingVideoLink.value),
-      siteMetinleri: texts.value
-    }
-  })
+  try {
+    const processedMagazine = magazinePages.value.map(p => ({ ...p, gosterimLink: convertToDirectLink(p.link) }))
+    const pdfId = extractDriveId(pdfLink.value)
+    
+    const res = await $fetch('/api/icerik', {
+      method: 'POST',
+      body: {
+        yuklemeTipi: uploadType.value,
+        dergi: processedMagazine,
+        pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
+        belgesel: convertToDirectLink(documentaryLink.value),
+        landing: convertToDirectLink(landingLink.value),
+        landingVideo: convertToVideoEmbed(landingVideoLink.value),
+        siteMetinleri: texts.value
+      }
+    })
 
-  successMessage.value = 'Successfully saved to database! 🚀'
-  setTimeout(() => successMessage.value = '', 3000)
+    if (res.error) {
+      alert('Sunucu Hatası: ' + res.error)
+    } else {
+      successMessage.value = 'Successfully saved to database! 🚀'
+      setTimeout(() => successMessage.value = '', 3000)
+    }
+  } catch (err) {
+    alert('Bağlantı Hatası: Veritabanına ulaşılamıyor! Eğer projeyi localhost üzerinde çalıştırıyorsan .env dosyası eksik demektir.')
+  }
 }
 </script>
 
@@ -141,8 +149,6 @@ const saveAll = async () => {
         <section class="admin-section">
           <h2>Website Texts (Global)</h2>
           <div class="input-grid">
-            
-            <!-- YENİ EKLENEN SEO METİNLERİ -->
             <div class="input-group">
               <label>Browser Tab Title (SEO):</label>
               <input v-model="texts.seoTitle" type="text" class="admin-input" />
@@ -151,8 +157,6 @@ const saveAll = async () => {
               <label>Site Description (SEO):</label>
               <input v-model="texts.seoDescription" type="text" class="admin-input" />
             </div>
-            <!-- ------------------------- -->
-
             <div class="input-group">
               <label>Site Title:</label>
               <input v-model="texts.siteTitle" type="text" class="admin-input" />

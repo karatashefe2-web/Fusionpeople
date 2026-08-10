@@ -1,11 +1,10 @@
 import { Redis } from '@upstash/redis'
 
-const redis = Redis.fromEnv()
-
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
-
   try {
+    const redis = Redis.fromEnv()
+    const body = await readBody(event)
+
     if (body.dergi !== undefined) await redis.set('dergiIcerik', body.dergi)
     if (body.belgesel !== undefined) await redis.set('belgeselIcerik', body.belgesel)
     if (body.landing !== undefined) await redis.set('landingIcerik', body.landing)
@@ -16,6 +15,6 @@ export default defineEventHandler(async (event) => {
 
     return { success: true }
   } catch (error) {
-    return { success: false, error: 'Veritabanına yazılamadı' }
+    return { success: false, error: 'Veritabanına yazılamadı. Şifreler eksik olabilir.' }
   }
 })
