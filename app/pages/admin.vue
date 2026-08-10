@@ -52,31 +52,38 @@ const landingLink = ref('')
 const landingVideoLink = ref('')
 const successMessage = ref('')
 
+// Çok daha güçlü Drive ID yakalama algoritması
 const extractDriveId = (url) => {
-  if (!url) return null;
-  const match = url.match(/\/d\/(.+?)\/|id=([a-zA-Z0-9_-]+)/);
-  return match ? (match[1] || match[2]) : null;
+  if (!url || typeof url !== 'string') return null;
+  const match = url.match(/[-\w]{25,}/);
+  return match ? match[0] : null;
 }
 
 const convertToDirectLink = (url) => {
+  if (!url) return '';
   const id = extractDriveId(url);
   return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
 }
 
 const convertToVideoEmbed = (url) => {
+  if (!url) return '';
   const id = extractDriveId(url);
   return id ? `https://drive.google.com/file/d/${id}/preview?autoplay=1&mute=1&controls=0&loop=1` : url;
 }
 
 const fetchData = async () => {
-  const data = await $fetch('/api/icerik')
-  if (data.dergi?.length) magazinePages.value = data.dergi
-  if (data.belgesel) documentaryLink.value = data.belgesel
-  if (data.landing) landingLink.value = data.landing
-  if (data.landingVideo) landingVideoLink.value = data.landingVideo
-  if (data.yuklemeTipi) uploadType.value = data.yuklemeTipi
-  if (data.pdf) pdfLink.value = data.pdf
-  if (data.siteMetinleri) texts.value = data.siteMetinleri
+  try {
+    const data = await $fetch('/api/icerik')
+    if (data.dergi?.length) magazinePages.value = data.dergi
+    if (data.belgesel) documentaryLink.value = data.belgesel
+    if (data.landing) landingLink.value = data.landing
+    if (data.landingVideo) landingVideoLink.value = data.landingVideo
+    if (data.yuklemeTipi) uploadType.value = data.yuklemeTipi
+    if (data.pdf) pdfLink.value = data.pdf
+    if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
+  } catch (err) {
+    console.error('Veri çekme hatası:', err)
+  }
 }
 
 onMounted(() => {
@@ -110,14 +117,14 @@ const saveAll = async () => {
       }
     })
 
-    if (res.error) {
+    if (res?.error) {
       alert('Sunucu Hatası: ' + res.error)
     } else {
       successMessage.value = 'Successfully saved to database! 🚀'
       setTimeout(() => successMessage.value = '', 3000)
     }
   } catch (err) {
-    alert('Bağlantı Hatası: Veritabanına ulaşılamıyor! Eğer projeyi localhost üzerinde çalıştırıyorsan .env dosyası eksik demektir.')
+    alert('Bağlantı Hatası: Veritabanına ulaşılamıyor! .env dosyası eksik olabilir veya bağlantı koptu.')
   }
 }
 </script>
