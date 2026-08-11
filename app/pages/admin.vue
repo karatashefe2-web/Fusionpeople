@@ -64,23 +64,26 @@ const convertToDirectLink = (url) => {
   return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
 }
 
-// Ana sayfa için YouTube Sonsuz Döngü Çeviricisi
+// Ana sayfa için YouTube Sonsuz Döngü Çeviricisi (Sessiz, Kontrolsüz)
 const convertToYouTubeBgEmbed = (url) => {
   if (!url) return '';
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
   const id = match ? match[1] : null;
-  
   if (id) {
-    // Tüm YouTube kontrollerini gizler, sessizce sonsuza kadar döndürür
     return `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&rel=0&showinfo=0&modestbranding=1&disablekb=1`;
   }
   return url;
 }
 
-const convertToPlayerEmbed = (url) => {
+// Belgesel sayfası için YouTube Sinema Çeviricisi (Sesli, Kontrollü, Temiz Arayüz)
+const convertToYouTubePlayerEmbed = (url) => {
   if (!url) return '';
-  const id = extractDriveId(url);
-  return id ? `https://drive.google.com/file/d/${id}/preview` : url;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+  const id = match ? match[1] : null;
+  if (id) {
+    return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&showinfo=0`;
+  }
+  return url;
 }
 
 const fetchData = async () => {
@@ -122,7 +125,7 @@ const saveAll = async () => {
         yuklemeTipi: uploadType.value,
         dergi: processedMagazine,
         pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
-        belgesel: convertToPlayerEmbed(documentaryLink.value),
+        belgesel: convertToYouTubePlayerEmbed(documentaryLink.value),
         landing: convertToDirectLink(landingLink.value),
         landingVideo: convertToYouTubeBgEmbed(landingVideoLink.value),
         siteMetinleri: texts.value
@@ -256,8 +259,8 @@ const saveAll = async () => {
         <section class="admin-section">
           <h2>Documentary / Video Page</h2>
           <div class="input-group">
-            <label>Video (Drive Link):</label>
-            <input v-model="documentaryLink" type="text" class="admin-input" />
+            <label>Video (YouTube Link):</label>
+            <input v-model="documentaryLink" type="text" placeholder="Ex: https://youtube.com/watch?v=..." class="admin-input" />
           </div>
         </section>
 

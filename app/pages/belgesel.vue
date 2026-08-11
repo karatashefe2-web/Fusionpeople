@@ -25,7 +25,7 @@ onMounted(async () => {
         <iframe 
           :src="videoLink" 
           class="video-frame" 
-          allow="autoplay; fullscreen" 
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
           frameborder="0"
           allowfullscreen>
         </iframe>
@@ -40,14 +40,13 @@ onMounted(async () => {
 <style scoped>
 .cinematic-video-page {
   min-height: 100vh;
-  background-color: #050505; /* Tam sinema siyahı */
+  background-color: #050505;
   color: #ffffff;
   display: flex;
   flex-direction: column;
   position: relative;
 }
 
-/* Üst Menü - Videonun üzerine zarifçe düşen gradyan gölge */
 .top-nav {
   position: absolute;
   top: 0;
@@ -56,11 +55,11 @@ onMounted(async () => {
   padding: 2.5rem 3rem;
   z-index: 10;
   background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%);
-  pointer-events: none; /* Gradyan tıklamayı engellemesin diye */
+  pointer-events: none;
 }
 
 .back-link {
-  pointer-events: auto; /* Sadece buton tıklanabilir olsun */
+  pointer-events: auto;
   display: inline-flex;
   text-decoration: none;
   color: #ffffff;
@@ -77,7 +76,6 @@ onMounted(async () => {
   transform: translateX(-5px);
 }
 
-/* Oynatıcı Kapsayıcı */
 .player-container {
   flex: 1;
   display: flex;
@@ -89,17 +87,16 @@ onMounted(async () => {
   box-sizing: border-box;
 }
 
-/* 16:9 Sabit Oranlı ve Gölgeli Çerçeve */
 .video-wrapper {
   position: relative;
-  width: 85vw; /* Geniş ekran hissi */
+  width: 85vw;
   max-width: 1600px;
-  aspect-ratio: 16 / 9; /* Kusursuz sinema oranı */
+  aspect-ratio: 16 / 9;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.9), 0 0 40px rgba(255,255,255,0.03); /* Derinlik ve hafif parlama */
+  box-shadow: 0 30px 60px rgba(0,0,0,0.9), 0 0 40px rgba(255,255,255,0.03);
   background: #000;
-  border: 1px solid rgba(255,255,255,0.05); /* Çok ince estetik bir sınır çizgisi */
+  border: 1px solid rgba(255,255,255,0.05);
 }
 
 .video-frame {
@@ -111,7 +108,6 @@ onMounted(async () => {
   border: none;
 }
 
-/* İçerik Yoksa */
 .empty-state {
   display: flex;
   justify-content: center;
@@ -128,7 +124,6 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-/* Telefondaki görünümü sıfır hata, tam ekran yap */
 @media (max-width: 768px) {
   .video-wrapper {
     width: 100vw;
