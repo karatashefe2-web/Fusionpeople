@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 
 const heroImage = ref('https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=2000&auto=format&fit=crop')
+const rawVideoLink = ref(null)
 const ytVideoId = ref(null)
 const isMuted = ref(true)
 const isPlayerReady = ref(false)
@@ -17,36 +18,48 @@ const texts = ref({
   btnVideo: 'WATCH'
 })
 
+// Kurşun geçirmez YouTube ID yakalayıcı (Her formatı tanır)
+const extractYouTubeId = (url) => {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+  return match ? match[1] : null;
+}
+
 onMounted(async () => {
   const data = await $fetch('/api/icerik')
   if (data.landing) heroImage.value = data.landing
   if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
   
-  // Veritabanındaki linkten sadece Video ID'sini cımbızlıyoruz
   if (data.landingVideo) {
-    const match = data.landingVideo.match(/embed\/([^?]+)/)
-    if (match && match[1]) {
-      ytVideoId.value = match[1]
-      loadYouTubeAPI()
+    rawVideoLink.value = data.landingVideo
+    const ytId = extractYouTubeId(data.landingVideo)
+    
+    // Eğer YouTube linkiyse özel motoru kur
+    if (ytId) {
+      ytVideoId.value = ytId
+      initYouTubeAPI()
     }
   }
 })
 
-// YouTube API'sini Yükle (Videoyu takılmadan kontrol edebilmek için)
-const loadYouTubeAPI = () => {
+const initYouTubeAPI = () => {
   if (!window.YT) {
     const tag = document.createElement('script')
     tag.src = 'https://www.youtube.com/iframe_api'
     const firstScriptTag = document.getElementsByTagName('script')[0]
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
     
-    window.onYouTubeIframeAPIReady = initPlayer
+    window.onYouTubeIframeAPIReady = () => {
+      createPlayer()
+    }
+  } else if (window.YT && window.YT.Player) {
+    createPlayer()
   } else {
-    initPlayer()
+    setTimeout(createPlayer, 1000)
   }
 }
 
-const initPlayer = () => {
+const createPlayer = () => {
   player = new window.YT.Player('yt-player-container', {
     videoId: ytVideoId.value,
     playerVars: {
@@ -54,7 +67,7 @@ const initPlayer = () => {
       controls: 0,
       mute: 1,
       loop: 1,
-      playlist: ytVideoId.value, // Loop'un kusursuz çalışması için gerekli
+      playlist: ytVideoId.value, 
       rel: 0,
       showinfo: 0,
       modestbranding: 1,
@@ -62,15 +75,14 @@ const initPlayer = () => {
       playsinline: 1
     },
     events: {
-      onReady: () => { 
+      onReady: (event) => { 
         isPlayerReady.value = true
-        player.playVideo()
+        event.target.playVideo()
       }
     }
   })
 }
 
-// Ses Açma / Kapatma Fonksiyonu
 const toggleSound = () => {
   if (player && typeof player.unMute === 'function') {
     if (isMuted.value) {
@@ -88,11 +100,22 @@ const toggleSound = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
-      <!-- YouTube Player (API ile kontrol ediliyor) -->
+      
+      <!-- MOTOR 1: YouTube Videosu Yüklendiyse (Ses kontrollü) -->
       <div v-show="ytVideoId" id="yt-player-container" class="iframe-video"></div>
       
-      <!-- Yedek Görsel -->
-      <img v-show="!ytVideoId" :src="heroImage" alt="Hero Background" class="bg-image" />
+      <!-- MOTOR 2: Google Drive Videosu Yüklendiyse (Eski usul) -->
+      <iframe 
+        v-if="!ytVideoId && rawVideoLink" 
+        :src="rawVideoLink" 
+        class="iframe-video" 
+        allow="autoplay; fullscreen; muted" 
+        frameborder="0">
+      </iframe>
+      
+      <!-- MOTOR 3: Hiç video yoksa Resim göster -->
+      <img v-show="!rawVideoLink" :src="heroImage" alt="Hero Background" class="bg-image" />
+      
       <div class="overlay"></div>
     </div>
 
@@ -120,7 +143,7 @@ const toggleSound = () => {
         </section>
       </main>
       
-      <!-- SES KONTROL BUTONU (Sağ Altta) -->
+      <!-- SADECE YOUTUBE VİDEOLARINDA ÇIKAN SES BUTONU -->
       <button v-if="ytVideoId && isPlayerReady" class="sound-toggle-btn" @click="toggleSound">
         <span class="icon">{{ isMuted ? '🔇' : '🔊' }}</span>
         <span class="text">{{ isMuted ? 'SOUND OFF' : 'SOUND ON' }}</span>
@@ -168,7 +191,6 @@ const toggleSound = () => {
 .ed-btn { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; font-weight: 600; text-transform: uppercase; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; }
 .ed-btn:hover { background: #fff; color: #000; }
 
-/* SES BUTONU TASARIMI */
 .sound-toggle-btn {
   position: absolute;
   bottom: 2rem;
@@ -189,7 +211,6 @@ const toggleSound = () => {
   transition: all 0.3s ease;
   z-index: 50;
 }
-
 .sound-toggle-btn:hover {
   background: rgba(255, 255, 255, 0.25);
   transform: scale(1.05);
