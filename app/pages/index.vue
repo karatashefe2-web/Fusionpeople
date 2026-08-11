@@ -57,12 +57,15 @@ const createPlayer = () => {
         isPlayerReady.value = true
         event.target.mute()
         event.target.playVideo()
-        // YouTube API üzerinden altyazı modüllerini zorla imha et!
+        
+        // YouTube API üzerinden gereksiz tüm eklentileri yok et
         event.target.unloadModule('captions')
         event.target.unloadModule('cc')
       },
       onStateChange: (event) => {
+        // VİDEO BİTTİĞİ AN: YouTube'un kendi loop'u yerine biz 0. saniyeye sarıyoruz!
         if (event.data === window.YT.PlayerState.ENDED) {
+          event.target.seekTo(0)
           event.target.playVideo()
         }
       }
@@ -87,12 +90,12 @@ const toggleSound = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
-      <!-- EKSTRA PARAMETRELER: cc_load_policy=0, iv_load_policy=3, fs=0 -->
+      <!-- DİKKAT: loop=1 ve playlist parametreleri tamamen SİLİNDİ! -->
       <iframe
         v-if="ytVideoId"
         id="yt-bg-iframe"
         class="iframe-video yt-scaled"
-        :src="`https://www.youtube.com/embed/${ytVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytVideoId}&playsinline=1&enablejsapi=1&rel=0&showinfo=0&modestbranding=1&cc_load_policy=0&iv_load_policy=3&fs=0&disablekb=1`"
+        :src="`https://www.youtube.com/embed/${ytVideoId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0&showinfo=0&modestbranding=1&cc_load_policy=0&iv_load_policy=3&fs=0&disablekb=1`"
         allow="autoplay; fullscreen"
         frameborder="0"
       ></iframe>
@@ -159,7 +162,6 @@ const toggleSound = () => {
   pointer-events: none; border: none;
 }
 
-/* YOUTUBE ALTIN ORANI: Videoyu yutmaz ama alttaki logoları gizler */
 .yt-scaled {
   transform: translate(-50%, -50%) scale(1.25);
 }
