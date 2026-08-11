@@ -2,7 +2,11 @@
 import { ref, onMounted } from 'vue'
 
 const heroImage = ref('https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=2000&auto=format&fit=crop')
-const heroVideo = ref(null)
+const ytVideoId = ref(null)
+const isMuted = ref(true)
+const isPlayerReady = ref(false)
+let player = null
+
 const texts = ref({
   siteTitle: 'FUSION PEOPLE',
   issueDate: 'ISSUE 01 — 2026',
@@ -16,23 +20,79 @@ const texts = ref({
 onMounted(async () => {
   const data = await $fetch('/api/icerik')
   if (data.landing) heroImage.value = data.landing
-  if (data.landingVideo) heroVideo.value = data.landingVideo
   if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
+  
+  // Veritabanındaki linkten sadece Video ID'sini cımbızlıyoruz
+  if (data.landingVideo) {
+    const match = data.landingVideo.match(/embed\/([^?]+)/)
+    if (match && match[1]) {
+      ytVideoId.value = match[1]
+      loadYouTubeAPI()
+    }
+  }
 })
+
+// YouTube API'sini Yükle (Videoyu takılmadan kontrol edebilmek için)
+const loadYouTubeAPI = () => {
+  if (!window.YT) {
+    const tag = document.createElement('script')
+    tag.src = 'https://www.youtube.com/iframe_api'
+    const firstScriptTag = document.getElementsByTagName('script')[0]
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
+    
+    window.onYouTubeIframeAPIReady = initPlayer
+  } else {
+    initPlayer()
+  }
+}
+
+const initPlayer = () => {
+  player = new window.YT.Player('yt-player-container', {
+    videoId: ytVideoId.value,
+    playerVars: {
+      autoplay: 1,
+      controls: 0,
+      mute: 1,
+      loop: 1,
+      playlist: ytVideoId.value, // Loop'un kusursuz çalışması için gerekli
+      rel: 0,
+      showinfo: 0,
+      modestbranding: 1,
+      disablekb: 1,
+      playsinline: 1
+    },
+    events: {
+      onReady: () => { 
+        isPlayerReady.value = true
+        player.playVideo()
+      }
+    }
+  })
+}
+
+// Ses Açma / Kapatma Fonksiyonu
+const toggleSound = () => {
+  if (player && typeof player.unMute === 'function') {
+    if (isMuted.value) {
+      player.unMute()
+      player.setVolume(100)
+    } else {
+      player.mute()
+    }
+    isMuted.value = !isMuted.value
+  }
+}
 </script>
 
 <template>
   <div class="cinematic-layout">
     
     <div class="background-media">
-      <iframe 
-        v-if="heroVideo" 
-        :src="heroVideo" 
-        class="iframe-video" 
-        allow="autoplay; fullscreen; muted" 
-        frameborder="0">
-      </iframe>
-      <img v-else :src="heroImage" alt="Hero Background" class="bg-image" />
+      <!-- YouTube Player (API ile kontrol ediliyor) -->
+      <div v-show="ytVideoId" id="yt-player-container" class="iframe-video"></div>
+      
+      <!-- Yedek Görsel -->
+      <img v-show="!ytVideoId" :src="heroImage" alt="Hero Background" class="bg-image" />
       <div class="overlay"></div>
     </div>
 
@@ -59,6 +119,12 @@ onMounted(async () => {
           </div>
         </section>
       </main>
+      
+      <!-- SES KONTROL BUTONU (Sağ Altta) -->
+      <button v-if="ytVideoId && isPlayerReady" class="sound-toggle-btn" @click="toggleSound">
+        <span class="icon">{{ isMuted ? '🔇' : '🔊' }}</span>
+        <span class="text">{{ isMuted ? 'SOUND OFF' : 'SOUND ON' }}</span>
+      </button>
     </div>
     
   </div>
@@ -67,7 +133,6 @@ onMounted(async () => {
 <style scoped>
 .cinematic-layout { min-height: 100vh; display: flex; flex-direction: column; color: #ffffff; position: relative; overflow: hidden; }
 
-/* YouTube videosunun ekrana tam oturması için CSS formülü */
 .background-media { 
   position: fixed; inset: 0; z-index: -1; 
   width: 100vw; height: 100vh; overflow: hidden; background: #000; 
@@ -76,7 +141,7 @@ onMounted(async () => {
 .bg-image { width: 100%; height: 100%; object-fit: cover; }
 
 .iframe-video { 
-  width: 100vw; height: 56.25vw; /* 16:9 Oranı korur */
+  width: 100vw; height: 56.25vw; 
   min-height: 100vh; min-width: 177.77vh; 
   position: absolute; top: 50%; left: 50%; 
   transform: translate(-50%, -50%); 
@@ -103,8 +168,41 @@ onMounted(async () => {
 .ed-btn { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; font-weight: 600; text-transform: uppercase; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; }
 .ed-btn:hover { background: #fff; color: #000; }
 
+/* SES BUTONU TASARIMI */
+.sound-toggle-btn {
+  position: absolute;
+  bottom: 2rem;
+  right: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  padding: 0.8rem 1.2rem;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  transition: all 0.3s ease;
+  z-index: 50;
+}
+
+.sound-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+
 @media (max-width: 768px) {
   .grid-container { grid-template-columns: 1fr; }
   .side-content { border-left: none; padding-left: 0; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2rem; }
+  .sound-toggle-btn {
+    bottom: 1rem;
+    right: 1rem;
+    padding: 0.6rem 1rem;
+    font-size: 0.65rem;
+  }
 }
 </style>
