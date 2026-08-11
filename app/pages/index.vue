@@ -3,12 +3,12 @@ import { ref, onMounted } from 'vue'
 
 const heroImage = ref('')
 const landingVideo = ref('')
-const normalizedVideoSrc = ref('')
-const embedFrame = ref(null)
-const isMuted = ref(true)
+const embedUrl = ref('')
 const videoElement = ref(null)
+const iframeRef = ref(null)
 const hasVideo = ref(false)
-const isEmbed = ref(false)
+const isYouTube = ref(false)
+const isDriveEmbed = ref(false)
 const isDirectFile = ref(false)
 
 const texts = ref({
@@ -33,20 +33,19 @@ const extractDriveId = (url) => {
   return match ? match[1] : null
 }
 
-// Veritabanındaki URL ne olursa olsun, tüm YouTube/Drive oynatıcı arayüzünü
-// (kontroller, logo, başlık, ilişkili videolar, altyazı) kapatan temiz URL üretir.
-const buildEmbedUrl = (url) => {
-  if (!url) return ''
-  const ytId = extractYouTubeId(url)
-  if (ytId) {
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    return `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId}&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&fs=0&disablekb=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(origin)}`
-  }
-  const driveId = extractDriveId(url)
-  if (driveId) {
-    return `https://drive.google.com/file/d/${driveId}/preview?autoplay=1&mute=1&controls=0&loop=1`
-  }
-  return url
+// YouTube embed URL'si: kontroller, başlık, logo, algoritmayla gelen öneriler ve
+// altyazı tamamen kapalı. enablejsapi=1 sayesinde postMessage ile komut gönderilebilir.
+const buildYouTubeEmbedUrl = (videoId) => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&fs=0&disablekb=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(origin)}`
+}
+
+// Oynatıcıya postMessage ile komut gönderir — tarayıcı autoplay politikasını aşar.
+const forcePlayYouTube = () => {
+  const frame = iframeRef.value
+  if (!frame || !frame.contentWindow) return
+  frame.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: [] }), '*')
+  frame.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*')
 }
 
 onMounted(async () => {
@@ -56,35 +55,24 @@ onMounted(async () => {
     landingVideo.value = data.landingVideo
     const ytId = extractYouTubeId(data.landingVideo)
     const driveId = extractDriveId(data.landingVideo)
-    isEmbed.value = Boolean(ytId || driveId)
-    isDirectFile.value = !isEmbed.value
+    isYouTube.value = Boolean(ytId)
+    isDriveEmbed.value = Boolean(driveId && !ytId)
+    isDirectFile.value = !ytId && !driveId
     hasVideo.value = true
-    normalizedVideoSrc.value = buildEmbedUrl(data.landingVideo)
+    if (ytId) embedUrl.value = buildYouTubeEmbedUrl(ytId)
   }
   if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
 
-  // YouTube videosu otomatik başlamazsa postMessage ile zorla başlat (yedek katmanlar halinde)
-  if (isEmbed.value && landingVideo.value.includes('youtube.com')) {
-    setTimeout(ensureYouTubeAutoPlay, 1000)
-    setTimeout(ensureYouTubeAutoPlay, 2500)
-    setTimeout(ensureYouTubeAutoPlay, 4000)
+  // Autoplay garantisi: iframe yüklendiğinde ve düzenli aralıklarla postMessage ile
+  // mute + play gönder. Video asla durağan kalmaz → YouTube'un play butonu/başlık/altyazı görünmez.
+  if (isYouTube.value) {
+    setTimeout(forcePlayYouTube, 1000)
+    setTimeout(forcePlayYouTube, 2500)
+    setTimeout(forcePlayYouTube, 5000)
+    setInterval(forcePlayYouTube, 3000)
+    window.addEventListener('pointerdown', forcePlayYouTube)
   }
 })
-
-// YouTube IFrame API'ye postMessage ile komut gönderir (script yüklemeye gerek yok)
-const sendYouTubeCommand = (func, args = []) => {
-  const iframe = embedFrame.value
-  if (!iframe || !iframe.contentWindow) return
-  iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args }), '*')
-}
-
-// Autoplay'i garantiler: önce sessize al (tarayıcı politikası sessiz oynatmaya izin verir),
-// sonra oynatmayı başlat. iframe yüklendiğinde ve birkaç kez daha tekrarlanır.
-const ensureYouTubeAutoPlay = () => {
-  if (!isEmbed.value || !landingVideo.value.includes('youtube.com')) return
-  sendYouTubeCommand('mute')
-  sendYouTubeCommand('playVideo')
-}
 
 const toggleSound = () => {
   isMuted.value = !isMuted.value
@@ -102,23 +90,33 @@ const handleVideoError = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
-      <!-- YouTube / Drive: temiz arka plan oynatıcı (kontroller, logo, başlık, altyazı kapalı — mp4 hissi) -->
+      <!-- YouTube: ham embed + postMessage ile zorla oynatma; scale ile krom ekran dışına itilir (mp4 hissi) -->
       <iframe
-        v-if="hasVideo && isEmbed"
-        ref="embedFrame"
-        :src="normalizedVideoSrc"
+        v-if="hasVideo && isYouTube"
+        ref="iframeRef"
+        :src="embedUrl"
         class="bg-video-embed"
         frameborder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowfullscreen
-        @load="ensureYouTubeAutoPlay">
+        @load="forcePlayYouTube">
+      </iframe>
+
+      <!-- Drive embed (yalın oynatıcı, cover ölçekli) -->
+      <iframe
+        v-else-if="hasVideo && isDriveEmbed"
+        :src="`https://drive.google.com/file/d/${extractDriveId(landingVideo)}/preview?autoplay=1&mute=1&controls=0&loop=1`"
+        class="bg-video-embed"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen>
       </iframe>
 
       <!-- Doğrudan video dosyası (mp4 vb.) -->
       <video 
         v-else-if="hasVideo && isDirectFile"
         ref="videoElement"
-        :src="normalizedVideoSrc"
+        :src="landingVideo"
         class="bg-video"
         autoplay 
         loop 
@@ -131,7 +129,11 @@ const handleVideoError = () => {
       <!-- Video yüklenemezse veya yoksa yedek görsel devreye girer -->
       <img v-else-if="heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
       
-      <div class="overlay"></div>
+      <div class="overlay">
+        <!-- YouTube krom kalıntılarını (başlık/kontrol bantları) yumuşatan siyah geçişler -->
+        <div class="chrome-top"></div>
+        <div class="chrome-bottom"></div>
+      </div>
     </div>
 
     <div class="content-layer">
@@ -197,23 +199,44 @@ const handleVideoError = () => {
   border: none;
 }
 
-/* YouTube/Drive embed'i ekranı tamamen kaplayacak şekilde ölçekler.
-   scale(1.3) + translateY(-20vh): YouTube'un üst başlık çubuğu, logo,
-   alttaki kontrol/progress barı ve ilişkili video önerileri tamamen
-   ekranın dışına iter — saf mp4 görüntüsü hissi verir. */
+/* YouTube ve Drive için çerçeveleme çözümü (kesin mp4 hissi):
+   iframe'i 2.2x büyütüp görüntünün merkezini ekranın üstüne taşırız.
+   Böylece YouTube'un paused durumda gösterdiği merkez play/pause overlay'i,
+   üst başlık barı, logo, alt kontrol/progress barı ve "Diğer videolar"
+   önerileri fiziksel olarak ekranın DIŞINA taşar. Ekranda yalnızca videonun
+   orta-alt bölgesi kalır — oynuyor ya da durağan fark etmeksizin arayüzden
+   hiçbir şey görünmez. */
 .bg-video-embed {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, calc(-50% - 20vh)) scale(1.3);
-  width: max(100vw, calc(100vh * 16 / 9));
-  height: max(100vh, calc(100vw * 9 / 16));
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  transform: translateY(-55%) scale(2.2);
   border: none;
   pointer-events: none;
   background: #000;
 }
 
 .overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%); }
+
+/* YouTube krom (başlık/kontrol) kalıntılarını yumuşatan siyah geçiş bantları */
+.chrome-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8vh;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
+}
+.chrome-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 12vh;
+  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
+}
 
 .content-layer { position: relative; z-index: 10; display: flex; flex-direction: column; flex: 1; padding: 2rem; }
 
