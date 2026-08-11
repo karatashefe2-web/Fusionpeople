@@ -1,12 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 
 const heroImage = ref('https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=2000&auto=format&fit=crop')
 const rawVideoLink = ref(null)
-const ytVideoId = ref(null)
 const isMuted = ref(true)
-const isPlayerReady = ref(false)
-let player = null
 
 const texts = ref({
   siteTitle: 'FUSION PEOPLE',
@@ -18,81 +15,25 @@ const texts = ref({
   btnVideo: 'WATCH'
 })
 
-// Kurşun geçirmez YouTube ID yakalayıcı (Her formatı tanır)
-const extractYouTubeId = (url) => {
-  if (!url) return null;
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-  return match ? match[1] : null;
-}
-
 onMounted(async () => {
   const data = await $fetch('/api/icerik')
   if (data.landing) heroImage.value = data.landing
   if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
-  
-  if (data.landingVideo) {
-    rawVideoLink.value = data.landingVideo
-    const ytId = extractYouTubeId(data.landingVideo)
-    
-    // Eğer YouTube linkiyse özel motoru kur
-    if (ytId) {
-      ytVideoId.value = ytId
-      initYouTubeAPI()
-    }
-  }
+  if (data.landingVideo) rawVideoLink.value = data.landingVideo
 })
 
-const initYouTubeAPI = () => {
-  if (!window.YT) {
-    const tag = document.createElement('script')
-    tag.src = 'https://www.youtube.com/iframe_api'
-    const firstScriptTag = document.getElementsByTagName('script')[0]
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
-    
-    window.onYouTubeIframeAPIReady = () => {
-      createPlayer()
-    }
-  } else if (window.YT && window.YT.Player) {
-    createPlayer()
-  } else {
-    setTimeout(createPlayer, 1000)
+// Butona tıklandığında linkin içindeki mute=1'i mute=0'a çeviren dinamik yapı
+const activeVideoUrl = computed(() => {
+  if (!rawVideoLink.value) return null
+  let url = rawVideoLink.value
+  if (!isMuted.value) {
+    return url.replace('mute=1', 'mute=0')
   }
-}
-
-const createPlayer = () => {
-  player = new window.YT.Player('yt-player-container', {
-    videoId: ytVideoId.value,
-    playerVars: {
-      autoplay: 1,
-      controls: 0,
-      mute: 1,
-      loop: 1,
-      playlist: ytVideoId.value, 
-      rel: 0,
-      showinfo: 0,
-      modestbranding: 1,
-      disablekb: 1,
-      playsinline: 1
-    },
-    events: {
-      onReady: (event) => { 
-        isPlayerReady.value = true
-        event.target.playVideo()
-      }
-    }
-  })
-}
+  return url.replace('mute=0', 'mute=1')
+})
 
 const toggleSound = () => {
-  if (player && typeof player.unMute === 'function') {
-    if (isMuted.value) {
-      player.unMute()
-      player.setVolume(100)
-    } else {
-      player.mute()
-    }
-    isMuted.value = !isMuted.value
-  }
+  isMuted.value = !isMuted.value
 }
 </script>
 
@@ -100,22 +41,14 @@ const toggleSound = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
-      
-      <!-- MOTOR 1: YouTube Videosu Yüklendiyse (Ses kontrollü) -->
-      <div v-show="ytVideoId" id="yt-player-container" class="iframe-video"></div>
-      
-      <!-- MOTOR 2: Google Drive Videosu Yüklendiyse (Eski usul) -->
       <iframe 
-        v-if="!ytVideoId && rawVideoLink" 
-        :src="rawVideoLink" 
+        v-if="activeVideoUrl" 
+        :src="activeVideoUrl" 
         class="iframe-video" 
-        allow="autoplay; fullscreen; muted" 
+        allow="autoplay; fullscreen" 
         frameborder="0">
       </iframe>
-      
-      <!-- MOTOR 3: Hiç video yoksa Resim göster -->
-      <img v-show="!rawVideoLink" :src="heroImage" alt="Hero Background" class="bg-image" />
-      
+      <img v-else :src="heroImage" alt="Hero Background" class="bg-image" />
       <div class="overlay"></div>
     </div>
 
@@ -143,10 +76,19 @@ const toggleSound = () => {
         </section>
       </main>
       
-      <!-- SADECE YOUTUBE VİDEOLARINDA ÇIKAN SES BUTONU -->
-      <button v-if="ytVideoId && isPlayerReady" class="sound-toggle-btn" @click="toggleSound">
-        <span class="icon">{{ isMuted ? '🔇' : '🔊' }}</span>
-        <span class="text">{{ isMuted ? 'SOUND OFF' : 'SOUND ON' }}</span>
+      <!-- MINIMAL SES BUTONU (Sadece Drive'da da çalışır) -->
+      <button v-if="activeVideoUrl" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
+        <!-- SESSİZ İKONU -->
+        <svg v-if="isMuted" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+        <!-- SESLİ İKONU -->
+        <svg v-else xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
       </button>
     </div>
     
@@ -191,39 +133,39 @@ const toggleSound = () => {
 .ed-btn { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; font-weight: 600; text-transform: uppercase; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; }
 .ed-btn:hover { background: #fff; color: #000; }
 
-.sound-toggle-btn {
+/* MINIMAL SES BUTONU TASARIMI */
+.minimal-mute-btn {
   position: absolute;
-  bottom: 2rem;
-  right: 2rem;
-  background: rgba(255, 255, 255, 0.1);
+  bottom: 2.5rem;
+  right: 2.5rem;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(8px);
   color: #fff;
-  padding: 0.8rem 1.2rem;
-  border-radius: 50px;
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 0.5rem;
   cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  transition: all 0.3s ease;
+  transition: all 0.4s ease;
   z-index: 50;
 }
-.sound-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: scale(1.05);
+.minimal-mute-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.08);
 }
 
 @media (max-width: 768px) {
   .grid-container { grid-template-columns: 1fr; }
   .side-content { border-left: none; padding-left: 0; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2rem; }
-  .sound-toggle-btn {
-    bottom: 1rem;
-    right: 1rem;
-    padding: 0.6rem 1rem;
-    font-size: 0.65rem;
+  .minimal-mute-btn {
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 42px;
+    height: 42px;
   }
 }
 </style>
