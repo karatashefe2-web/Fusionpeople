@@ -1,7 +1,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 
-const heroImage = ref('https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=2000&auto=format&fit=crop')
+// Stock köpek fotoğrafını tamamen kaldırdık. 
+// Admin panelinden bir şey yüklenmezse artık simsiyah şık bir ekran bekleyecek.
+const heroImage = ref('')
 const rawVideoLink = ref(null)
 const isMuted = ref(true)
 
@@ -22,7 +24,6 @@ onMounted(async () => {
   if (data.landingVideo) rawVideoLink.value = data.landingVideo
 })
 
-// Butona tıklandığında linkin içindeki mute=1'i mute=0'a çeviren dinamik yapı
 const activeVideoUrl = computed(() => {
   if (!rawVideoLink.value) return null
   let url = rawVideoLink.value
@@ -48,7 +49,7 @@ const toggleSound = () => {
         allow="autoplay; fullscreen" 
         frameborder="0">
       </iframe>
-      <img v-else :src="heroImage" alt="Hero Background" class="bg-image" />
+      <img v-else-if="heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
       <div class="overlay"></div>
     </div>
 
@@ -76,15 +77,13 @@ const toggleSound = () => {
         </section>
       </main>
       
-      <!-- MINIMAL SES BUTONU (Sadece Drive'da da çalışır) -->
+      <!-- MINIMAL SES BUTONU (Sol alta alındı) -->
       <button v-if="activeVideoUrl" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
-        <!-- SESSİZ İKONU -->
         <svg v-if="isMuted" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
           <line x1="23" y1="9" x2="17" y2="15"></line>
           <line x1="17" y1="9" x2="23" y2="15"></line>
         </svg>
-        <!-- SESLİ İKONU -->
         <svg v-else xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
           <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
@@ -96,7 +95,7 @@ const toggleSound = () => {
 </template>
 
 <style scoped>
-.cinematic-layout { min-height: 100vh; display: flex; flex-direction: column; color: #ffffff; position: relative; overflow: hidden; }
+.cinematic-layout { min-height: 100vh; display: flex; flex-direction: column; color: #ffffff; position: relative; overflow: hidden; background: #000; }
 
 .background-media { 
   position: fixed; inset: 0; z-index: -1; 
@@ -133,11 +132,11 @@ const toggleSound = () => {
 .ed-btn { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; font-weight: 600; text-transform: uppercase; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; }
 .ed-btn:hover { background: #fff; color: #000; }
 
-/* MINIMAL SES BUTONU TASARIMI */
+/* MINIMAL SES BUTONU (SOL ALTA TAŞINDI) */
 .minimal-mute-btn {
   position: absolute;
   bottom: 2.5rem;
-  right: 2.5rem;
+  left: 2.5rem; /* right yerine left yaptık */
   width: 50px;
   height: 50px;
   border-radius: 50%;
@@ -163,7 +162,7 @@ const toggleSound = () => {
   .side-content { border-left: none; padding-left: 0; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2rem; }
   .minimal-mute-btn {
     bottom: 1.5rem;
-    right: 1.5rem;
+    left: 1.5rem;
     width: 42px;
     height: 42px;
   }
