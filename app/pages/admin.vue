@@ -71,7 +71,7 @@ const convertToVideoEmbed = (url) => {
   return id ? `https://drive.google.com/file/d/${id}/preview?autoplay=1&mute=1&controls=0&loop=1` : url;
 }
 
-// Belgesel sayfası için standart oynatıcı formatı
+// Belgesel sayfası için standart oynatıcı formatı (virüs uyarısını atlar)
 const convertToPlayerEmbed = (url) => {
   if (!url) return '';
   const id = extractDriveId(url);
