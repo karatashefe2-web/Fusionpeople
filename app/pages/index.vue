@@ -32,7 +32,6 @@ onMounted(async () => {
     const ytId = extractYouTubeId(data.landingVideo)
     if (ytId) {
       ytVideoId.value = ytId
-      // Video ID'si Vue tarafından DOM'a (ekrana) basılana kadar 1 salise bekle
       await nextTick()
       initYouTubeAPI()
     }
@@ -40,23 +39,18 @@ onMounted(async () => {
 })
 
 const initYouTubeAPI = () => {
-  // Eğer YouTube kodu daha önce yüklendiyse (sayfa değiştirip dönüldüyse) direkt çalıştır
   if (window.YT && window.YT.Player) {
     createPlayer()
   } else {
-    // Yüklenmediyse YouTube dosyasını çağır
     const tag = document.createElement('script')
     tag.src = 'https://www.youtube.com/iframe_api'
     const firstScriptTag = document.getElementsByTagName('script')[0]
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
-    
-    // Yükleme bitince bizim ses tuşunu bağla
     window.onYouTubeIframeAPIReady = () => createPlayer()
   }
 }
 
 const createPlayer = () => {
-  // Ekrana önceden bastığımız 'yt-bg-iframe' id'li videoya bağlan
   player = new window.YT.Player('yt-bg-iframe', {
     events: {
       onReady: (event) => { 
@@ -65,7 +59,6 @@ const createPlayer = () => {
         event.target.playVideo()
       },
       onStateChange: (event) => {
-        // Video biterse sonsuz döngüyü zorla tetikle
         if (event.data === window.YT.PlayerState.ENDED) {
           event.target.playVideo()
         }
@@ -91,7 +84,7 @@ const toggleSound = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
-      <!-- VİDEO DOĞRUDAN HTML İLE EKRANA BASILIR (Siyah ekran engellenir) -->
+      <!-- VİDEO DOĞRUDAN HTML İLE EKRANA BASILIR -->
       <iframe
         v-if="ytVideoId"
         id="yt-bg-iframe"
@@ -101,9 +94,10 @@ const toggleSound = () => {
         frameborder="0"
       ></iframe>
       
-      <!-- SADECE YEDEK GÖRSEL -->
+      <!-- YEDEK GÖRSEL -->
       <img v-if="!ytVideoId && heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
       
+      <!-- ÇOK HAFİF GÖLGE KATMANI (Yazıların okunması için) -->
       <div class="overlay"></div>
     </div>
 
@@ -149,11 +143,11 @@ const toggleSound = () => {
 </template>
 
 <style scoped>
-.cinematic-layout { min-height: 100vh; display: flex; flex-direction: column; color: #ffffff; position: relative; overflow: hidden; background: #000; }
+.cinematic-layout { min-height: 100vh; display: flex; flex-direction: column; color: #ffffff; position: relative; overflow: hidden; background: #111; }
 
 .background-media { 
   position: fixed; inset: 0; z-index: -1; 
-  width: 100vw; height: 100vh; overflow: hidden; background: #000; 
+  width: 100vw; height: 100vh; overflow: hidden; background: transparent; 
   display: flex; justify-content: center; align-items: center;
 }
 .bg-image { width: 100%; height: 100%; object-fit: cover; }
@@ -162,16 +156,16 @@ const toggleSound = () => {
   width: 100vw; height: 56.25vw; 
   min-height: 100vh; min-width: 177.77vh; 
   position: absolute; top: 50%; left: 50%; 
-  transform: translate(-50%, -50%); 
   pointer-events: none; border: none;
 }
 
-/* YOUTUBE HİLESİ: Videoyu %135 büyütüp kenardaki logoları görünmez alana iter */
+/* YOUTUBE HİLESİ HAFİFLETİLDİ (%135 yerine %110) */
 .yt-scaled {
-  transform: translate(-50%, -50%) scale(1.35);
+  transform: translate(-50%, -50%) scale(1.12);
 }
 
-.overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.8) 100%); }
+/* KARANLIK EKRAN KALDIRILDI, SADECE ÇOK HAFİF GÖLGE */
+.overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%); }
 
 .content-layer { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; padding: 2rem; }
 
