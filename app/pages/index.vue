@@ -84,7 +84,6 @@ const toggleSound = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
-      <!-- VİDEO DOĞRUDAN HTML İLE EKRANA BASILIR -->
       <iframe
         v-if="ytVideoId"
         id="yt-bg-iframe"
@@ -94,13 +93,13 @@ const toggleSound = () => {
         frameborder="0"
       ></iframe>
       
-      <!-- YEDEK GÖRSEL -->
       <img v-if="!ytVideoId && heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
       
-      <!-- ÇOK HAFİF GÖLGE KATMANI (Yazıların okunması için) -->
+      <!-- Sadece çok hafif, transparan bir okuma gölgesi -->
       <div class="overlay"></div>
     </div>
 
+    <!-- Yazıların videonun üstünde kalması için katman ayarı (z-index: 10) -->
     <div class="content-layer">
       <header class="top-bar">
         <div class="logo">{{ texts.siteTitle }}</div>
@@ -125,7 +124,7 @@ const toggleSound = () => {
         </section>
       </main>
       
-      <!-- MINIMAL SES BUTONU (Sol Altta) -->
+      <!-- MINIMAL SES BUTONU -->
       <button v-if="ytVideoId && isPlayerReady" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
         <svg v-if="isMuted" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -143,11 +142,13 @@ const toggleSound = () => {
 </template>
 
 <style scoped>
-.cinematic-layout { min-height: 100vh; display: flex; flex-direction: column; color: #ffffff; position: relative; overflow: hidden; background: #111; }
+/* BURASI DÜZELTİLDİ: background: transparent yapıldı, siyah duvar yıkıldı! */
+.cinematic-layout { min-height: 100vh; display: flex; flex-direction: column; color: #ffffff; position: relative; overflow: hidden; background: transparent; }
 
+/* BURASI DÜZELTİLDİ: z-index: 0 yapıldı, video duvarın arkasından çıkarıldı */
 .background-media { 
-  position: fixed; inset: 0; z-index: -1; 
-  width: 100vw; height: 100vh; overflow: hidden; background: transparent; 
+  position: fixed; inset: 0; z-index: 0; 
+  width: 100vw; height: 100vh; overflow: hidden; background: #000; 
   display: flex; justify-content: center; align-items: center;
 }
 .bg-image { width: 100%; height: 100%; object-fit: cover; }
@@ -159,15 +160,14 @@ const toggleSound = () => {
   pointer-events: none; border: none;
 }
 
-/* YOUTUBE HİLESİ HAFİFLETİLDİ (%135 yerine %110) */
 .yt-scaled {
   transform: translate(-50%, -50%) scale(1.12);
 }
 
-/* KARANLIK EKRAN KALDIRILDI, SADECE ÇOK HAFİF GÖLGE */
 .overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%); }
 
-.content-layer { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; padding: 2rem; }
+/* BURASI DÜZELTİLDİ: Yazıların her zaman en üstte olması garantiye alındı */
+.content-layer { position: relative; z-index: 10; display: flex; flex-direction: column; flex: 1; padding: 2rem; }
 
 .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 1rem; margin-bottom: 3rem; }
 .logo { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
@@ -185,7 +185,6 @@ const toggleSound = () => {
 .ed-btn { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; font-weight: 600; text-transform: uppercase; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; }
 .ed-btn:hover { background: #fff; color: #000; }
 
-/* MINIMAL SES BUTONU (Sol Altta) */
 .minimal-mute-btn {
   position: absolute;
   bottom: 2.5rem;
