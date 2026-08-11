@@ -70,14 +70,13 @@ const convertToDirectLink = (url) => {
   return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
 }
 
+// Arka plan videosu: HTML5 <video> etiketiyle oynatılır (kontroller/altyazı yok,
+// otomatik başlar). Bu yüzden sadece doğrudan oynatılabilir video dosyası URL'si
+// (mp4/webm) saklanır — Drive için doğrudan indirme/oynatma linki üretilir.
 const convertLandingVideo = (url) => {
   if (!url) return '';
-  const ytId = extractYouTubeId(url);
-  if (ytId) {
-    return `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId}&rel=0&showinfo=0&modestbranding=1&disablekb=1`;
-  }
   const driveId = extractDriveId(url);
-  return driveId ? `https://drive.google.com/file/d/${driveId}/preview?autoplay=1&mute=1&controls=0&loop=1` : url;
+  return driveId ? `https://drive.google.com/uc?export=download&id=${driveId}` : url;
 }
 
 const convertToPlayerEmbed = (url) => {
@@ -223,8 +222,9 @@ const saveAll = async () => {
         <section class="admin-section">
           <h2>Homepage Background (Hero)</h2>
           <div class="input-group">
-            <label>Background Video (YouTube or Drive Link):</label>
-            <input v-model="landingVideoLink" type="text" class="admin-input" />
+            <label>Background Video (Direct MP4/WebM File URL)</label>
+            <input v-model="landingVideoLink" type="text" class="admin-input" placeholder="https://example.com/video.mp4" />
+            <p class="field-hint">Video dosyasının doğrudan linki (mp4/webm). HTML5 oynatıcı kullanılır: kontroller ve altyazı görünmez, otomatik başlar. YouTube linki kullanmayın — YouTube arka plan videoları için uygun değildir.</p>
           </div>
           <div class="input-group">
             <label>Background Image (Drive Link - Fallback):</label>
@@ -297,6 +297,7 @@ const saveAll = async () => {
 .admin-input { padding: 1rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s; width: 100%; box-sizing: border-box; font-family: inherit; }
 .admin-input:focus { outline: none; border-color: #111; }
 textarea.admin-input { resize: vertical; }
+.field-hint { font-size: 0.8rem; color: #86868b; line-height: 1.4; margin-top: 0.25rem; }
 .btn-add-page { background: none; border: 1px dashed #111; color: #111; padding: 0.8rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; margin-top: 1rem; }
 .btn-add-page:hover { background: #111; color: white; }
 .action-bar { display: flex; align-items: center; gap: 2rem; margin-top: 2rem; }
