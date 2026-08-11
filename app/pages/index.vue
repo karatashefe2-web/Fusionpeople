@@ -57,6 +57,9 @@ const createPlayer = () => {
         isPlayerReady.value = true
         event.target.mute()
         event.target.playVideo()
+        // YouTube API üzerinden altyazı modüllerini zorla imha et!
+        event.target.unloadModule('captions')
+        event.target.unloadModule('cc')
       },
       onStateChange: (event) => {
         if (event.data === window.YT.PlayerState.ENDED) {
@@ -84,22 +87,21 @@ const toggleSound = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
+      <!-- EKSTRA PARAMETRELER: cc_load_policy=0, iv_load_policy=3, fs=0 -->
       <iframe
         v-if="ytVideoId"
         id="yt-bg-iframe"
         class="iframe-video yt-scaled"
-        :src="`https://www.youtube.com/embed/${ytVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytVideoId}&playsinline=1&enablejsapi=1&rel=0&showinfo=0&modestbranding=1`"
+        :src="`https://www.youtube.com/embed/${ytVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytVideoId}&playsinline=1&enablejsapi=1&rel=0&showinfo=0&modestbranding=1&cc_load_policy=0&iv_load_policy=3&fs=0&disablekb=1`"
         allow="autoplay; fullscreen"
         frameborder="0"
       ></iframe>
       
       <img v-if="!ytVideoId && heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
       
-      <!-- Sadece çok hafif, transparan bir okuma gölgesi -->
       <div class="overlay"></div>
     </div>
 
-    <!-- Yazıların videonun üstünde kalması için katman ayarı (z-index: 10) -->
     <div class="content-layer">
       <header class="top-bar">
         <div class="logo">{{ texts.siteTitle }}</div>
@@ -124,7 +126,6 @@ const toggleSound = () => {
         </section>
       </main>
       
-      <!-- MINIMAL SES BUTONU -->
       <button v-if="ytVideoId && isPlayerReady" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
         <svg v-if="isMuted" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -142,10 +143,8 @@ const toggleSound = () => {
 </template>
 
 <style scoped>
-/* BURASI DÜZELTİLDİ: background: transparent yapıldı, siyah duvar yıkıldı! */
 .cinematic-layout { min-height: 100vh; display: flex; flex-direction: column; color: #ffffff; position: relative; overflow: hidden; background: transparent; }
 
-/* BURASI DÜZELTİLDİ: z-index: 0 yapıldı, video duvarın arkasından çıkarıldı */
 .background-media { 
   position: fixed; inset: 0; z-index: 0; 
   width: 100vw; height: 100vh; overflow: hidden; background: #000; 
@@ -160,13 +159,13 @@ const toggleSound = () => {
   pointer-events: none; border: none;
 }
 
+/* YOUTUBE ALTIN ORANI: Videoyu yutmaz ama alttaki logoları gizler */
 .yt-scaled {
-  transform: translate(-50%, -50%) scale(1.12);
+  transform: translate(-50%, -50%) scale(1.25);
 }
 
 .overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%); }
 
-/* BURASI DÜZELTİLDİ: Yazıların her zaman en üstte olması garantiye alındı */
 .content-layer { position: relative; z-index: 10; display: flex; flex-direction: column; flex: 1; padding: 2rem; }
 
 .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 1rem; margin-bottom: 3rem; }
