@@ -1,8 +1,7 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const heroImage = ref('')
-const rawVideoLink = ref(null)
 const ytVideoId = ref(null)
 const isMuted = ref(true)
 const isPlayerReady = ref(false)
@@ -30,9 +29,7 @@ onMounted(async () => {
   if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
   
   if (data.landingVideo) {
-    rawVideoLink.value = data.landingVideo
     const ytId = extractYouTubeId(data.landingVideo)
-    
     if (ytId) {
       ytVideoId.value = ytId
       initYouTubeAPI()
@@ -60,7 +57,7 @@ const createPlayer = () => {
     playerVars: {
       autoplay: 1,
       controls: 0,
-      mute: 1,
+      mute: 1, 
       loop: 1,
       playlist: ytVideoId.value, 
       rel: 0,
@@ -72,21 +69,22 @@ const createPlayer = () => {
     events: {
       onReady: (event) => { 
         isPlayerReady.value = true
+        // Tarayıcıları autoplay'e zorlamak için kesin komutlar:
+        event.target.mute()
         event.target.playVideo()
+      },
+      onStateChange: (event) => {
+        // Sonsuz döngü bazen takılırsa diye sigorta
+        if (event.data === window.YT.PlayerState.ENDED) {
+          event.target.playVideo()
+        }
       }
     }
   })
 }
 
-// Drive fallback için ses toggle'ı
-const activeDriveUrl = computed(() => {
-  if (!rawVideoLink.value || ytVideoId.value) return null
-  let url = rawVideoLink.value
-  return isMuted.value ? url.replace('mute=0', 'mute=1') : url.replace('mute=1', 'mute=0')
-})
-
 const toggleSound = () => {
-  if (ytVideoId.value && player && typeof player.unMute === 'function') {
+  if (player && typeof player.unMute === 'function') {
     if (isMuted.value) {
       player.unMute()
       player.setVolume(100)
@@ -102,20 +100,11 @@ const toggleSound = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
-      <!-- YOUTUBE OYNATICI (CSS Scale Hilesi Uygulandı) -->
+      <!-- 100% YOUTUBE OYNATICI (CSS Scale Hilesi ile logolar gizlendi) -->
       <div v-show="ytVideoId" id="yt-player-container" class="iframe-video yt-scaled"></div>
       
-      <!-- DRIVE OYNATICI (Fallback) -->
-      <iframe 
-        v-if="!ytVideoId && activeDriveUrl" 
-        :src="activeDriveUrl" 
-        class="iframe-video" 
-        allow="autoplay; fullscreen" 
-        frameborder="0">
-      </iframe>
-      
-      <!-- YEDEK GÖRSEL -->
-      <img v-if="!rawVideoLink && heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
+      <!-- SADECE YEDEK GÖRSEL -->
+      <img v-if="!ytVideoId && heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
       
       <div class="overlay"></div>
     </div>
@@ -144,8 +133,8 @@ const toggleSound = () => {
         </section>
       </main>
       
-      <!-- MINIMAL SES BUTONU (Sol Altta) -->
-      <button v-if="rawVideoLink && (!ytVideoId || isPlayerReady)" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
+      <!-- MINIMAL SES BUTONU (Sol Altta, Sadece YT yüklenince çıkar) -->
+      <button v-if="ytVideoId && isPlayerReady" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
         <svg v-if="isMuted" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
           <line x1="23" y1="9" x2="17" y2="15"></line>
