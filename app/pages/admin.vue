@@ -52,7 +52,6 @@ const landingLink = ref('')
 const landingVideoLink = ref('')
 const successMessage = ref('')
 
-// Çok daha güçlü Drive ID yakalama algoritması
 const extractDriveId = (url) => {
   if (!url || typeof url !== 'string') return null;
   const match = url.match(/[-\w]{25,}/);
@@ -65,10 +64,18 @@ const convertToDirectLink = (url) => {
   return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
 }
 
+// Ana sayfa için sessiz arka plan videosu formatı
 const convertToVideoEmbed = (url) => {
   if (!url) return '';
   const id = extractDriveId(url);
   return id ? `https://drive.google.com/file/d/${id}/preview?autoplay=1&mute=1&controls=0&loop=1` : url;
+}
+
+// Belgesel sayfası için standart oynatıcı formatı
+const convertToPlayerEmbed = (url) => {
+  if (!url) return '';
+  const id = extractDriveId(url);
+  return id ? `https://drive.google.com/file/d/${id}/preview` : url;
 }
 
 const fetchData = async () => {
@@ -110,7 +117,7 @@ const saveAll = async () => {
         yuklemeTipi: uploadType.value,
         dergi: processedMagazine,
         pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
-        belgesel: convertToDirectLink(documentaryLink.value),
+        belgesel: convertToPlayerEmbed(documentaryLink.value),
         landing: convertToDirectLink(landingLink.value),
         landingVideo: convertToVideoEmbed(landingVideoLink.value),
         siteMetinleri: texts.value
