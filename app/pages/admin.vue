@@ -70,12 +70,22 @@ const convertToDirectLink = (url) => {
   return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
 }
 
-const convertDocVideo = (url) => {
+const convertLandingVideo = (url) => {
   if (!url) return '';
   const ytId = extractYouTubeId(url);
-  // Belgesel için standart YouTube sinema formatı
+  if (ytId) {
+    return `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId}&rel=0&showinfo=0&modestbranding=1&disablekb=1`;
+  }
+  const driveId = extractDriveId(url);
+  return driveId ? `https://drive.google.com/file/d/${driveId}/preview?autoplay=1&mute=1&controls=0&loop=1` : url;
+}
+
+const convertToPlayerEmbed = (url) => {
+  if (!url) return '';
+  const ytId = extractYouTubeId(url);
   if (ytId) return `https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1&showinfo=0`;
-  return url;
+  const driveId = extractDriveId(url);
+  return driveId ? `https://drive.google.com/file/d/${driveId}/preview` : url;
 }
 
 const fetchData = async () => {
@@ -117,9 +127,9 @@ const saveAll = async () => {
         yuklemeTipi: uploadType.value,
         dergi: processedMagazine,
         pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
-        belgesel: convertDocVideo(documentaryLink.value),
+        belgesel: convertToPlayerEmbed(documentaryLink.value),
         landing: convertToDirectLink(landingLink.value),
-        landingVideo: landingVideoLink.value, // Ham linki veritabanına yolla, index.vue API ile çözecek
+        landingVideo: convertLandingVideo(landingVideoLink.value),
         siteMetinleri: texts.value
       }
     })
@@ -162,27 +172,59 @@ const saveAll = async () => {
 
         <section class="admin-section">
           <h2>Website Texts (Global)</h2>
-          <!-- Metin kutuları (SEO, Editor vb.) -->
           <div class="input-grid">
-            <div class="input-group"><label>Browser Tab Title (SEO):</label><input v-model="texts.seoTitle" type="text" class="admin-input" /></div>
-            <div class="input-group"><label>Site Description (SEO):</label><input v-model="texts.seoDescription" type="text" class="admin-input" /></div>
-            <div class="input-group"><label>Site Title:</label><input v-model="texts.siteTitle" type="text" class="admin-input" /></div>
-            <div class="input-group"><label>Issue Date / Info:</label><input v-model="texts.issueDate" type="text" class="admin-input" /></div>
-            <div class="input-group full-width"><label>Main Headline (Use &lt;br&gt; for line breaks):</label><input v-model="texts.mainHeadline" type="text" class="admin-input" /></div>
-            <div class="input-group"><label>Editor's Note Title:</label><input v-model="texts.editorTitle" type="text" class="admin-input" /></div>
-            <div class="input-group full-width"><label>Editor's Note Text:</label><textarea v-model="texts.editorText" class="admin-input" rows="3"></textarea></div>
-            <div class="input-group"><label>Magazine Button Text:</label><input v-model="texts.btnMagazine" type="text" class="admin-input" /></div>
-            <div class="input-group"><label>Video Button Text:</label><input v-model="texts.btnVideo" type="text" class="admin-input" /></div>
-            <div class="input-group"><label>Go Back Button Text:</label><input v-model="texts.goBack" type="text" class="admin-input" /></div>
-            <div class="input-group"><label>Magazine Navbar Title:</label><input v-model="texts.magazineTopTitle" type="text" class="admin-input" /></div>
+            <div class="input-group">
+              <label>Browser Tab Title (SEO):</label>
+              <input v-model="texts.seoTitle" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Site Description (SEO):</label>
+              <input v-model="texts.seoDescription" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Site Title:</label>
+              <input v-model="texts.siteTitle" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Issue Date / Info:</label>
+              <input v-model="texts.issueDate" type="text" class="admin-input" />
+            </div>
+            <div class="input-group full-width">
+              <label>Main Headline (Use &lt;br&gt; for line breaks):</label>
+              <input v-model="texts.mainHeadline" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Editor's Note Title:</label>
+              <input v-model="texts.editorTitle" type="text" class="admin-input" />
+            </div>
+            <div class="input-group full-width">
+              <label>Editor's Note Text:</label>
+              <textarea v-model="texts.editorText" class="admin-input" rows="3"></textarea>
+            </div>
+            <div class="input-group">
+              <label>Magazine Button Text:</label>
+              <input v-model="texts.btnMagazine" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Video Button Text:</label>
+              <input v-model="texts.btnVideo" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Go Back Button Text:</label>
+              <input v-model="texts.goBack" type="text" class="admin-input" />
+            </div>
+            <div class="input-group">
+              <label>Magazine Navbar Title:</label>
+              <input v-model="texts.magazineTopTitle" type="text" class="admin-input" />
+            </div>
           </div>
         </section>
 
         <section class="admin-section">
           <h2>Homepage Background (Hero)</h2>
           <div class="input-group">
-            <label>Background Video (YouTube Link):</label>
-            <input v-model="landingVideoLink" type="text" placeholder="Ex: https://youtube.com/watch?v=..." class="admin-input" />
+            <label>Background Video (YouTube or Drive Link):</label>
+            <input v-model="landingVideoLink" type="text" class="admin-input" />
           </div>
           <div class="input-group">
             <label>Background Image (Drive Link - Fallback):</label>
@@ -196,20 +238,28 @@ const saveAll = async () => {
             <button :class="['tab-btn', { active: uploadType === 'single' }]" @click="uploadType = 'single'">Images (One by One)</button>
             <button :class="['tab-btn', { active: uploadType === 'pdf' }]" @click="uploadType = 'pdf'">Single PDF File</button>
           </div>
+
           <div v-if="uploadType === 'single'" class="tab-content">
-            <div v-for="page in magazinePages" :key="page.id" class="input-group"><label>{{ page.name }} (Drive Link):</label><input v-model="page.link" type="text" class="admin-input" /></div>
+            <div v-for="page in magazinePages" :key="page.id" class="input-group">
+              <label>{{ page.name }} (Drive Link):</label>
+              <input v-model="page.link" type="text" class="admin-input" />
+            </div>
             <button class="btn-add-page" @click="addNewPage">+ Add New Page</button>
           </div>
+
           <div v-if="uploadType === 'pdf'" class="tab-content">
-            <div class="input-group"><label>PDF File (Drive Link):</label><input v-model="pdfLink" type="text" class="admin-input" /></div>
+            <div class="input-group">
+              <label>PDF File (Drive Link):</label>
+              <input v-model="pdfLink" type="text" class="admin-input" />
+            </div>
           </div>
         </section>
 
         <section class="admin-section">
           <h2>Documentary / Video Page</h2>
           <div class="input-group">
-            <label>Video (YouTube Link):</label>
-            <input v-model="documentaryLink" type="text" placeholder="Ex: https://youtube.com/watch?v=..." class="admin-input" />
+            <label>Video (YouTube or Drive Link):</label>
+            <input v-model="documentaryLink" type="text" class="admin-input" />
           </div>
         </section>
 

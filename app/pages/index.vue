@@ -2,9 +2,11 @@
 import { ref, onMounted } from 'vue'
 
 const heroImage = ref('')
-const rawVideoLink = ref(null)
+const landingVideo = ref('')
 const isMuted = ref(true)
 const videoElement = ref(null)
+const hasVideo = ref(false)
+const isEmbedVideo = ref(false)
 
 const texts = ref({
   siteTitle: 'FUSION PEOPLE',
@@ -16,21 +18,20 @@ const texts = ref({
   btnVideo: 'WATCH'
 })
 
-// Google Drive veya doğrudan mp4 linkini HTML5 video formatına çevirir
-const convertToDirectMp4 = (url) => {
-  if (!url) return '';
-  const match = url.match(/[-\w]{25,}/);
-  const id = match ? match[0] : null;
-  return id ? `https://drive.google.com/uc?export=download&id=${id}` : url;
+const isEmbedUrl = (url) => {
+  if (!url) return false
+  return url.includes('youtube.com/embed') || url.includes('drive.google.com/file/d/')
 }
 
 onMounted(async () => {
   const data = await $fetch('/api/icerik')
   if (data.landing) heroImage.value = data.landing
-  if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
   if (data.landingVideo) {
-    rawVideoLink.value = convertToDirectMp4(data.landingVideo)
+    landingVideo.value = data.landingVideo
+    isEmbedVideo.value = isEmbedUrl(data.landingVideo)
+    hasVideo.value = true
   }
+  if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
 })
 
 const toggleSound = () => {
@@ -39,26 +40,43 @@ const toggleSound = () => {
     videoElement.value.muted = isMuted.value
   }
 }
+
+const handleVideoError = () => {
+  hasVideo.value = false
+  isEmbedVideo.value = false
+}
 </script>
 
 <template>
   <div class="cinematic-layout">
     
     <div class="background-media">
-      <!-- HTML5 SAF VİDEO ETİKETİ: Sıfır logo, sıfır kontrol tuşu, kusursuz sonsuz döngü -->
+      <!-- Admin panelden girilen YouTube/Drive bağlantısı (embed oynatıcı) -->
+      <iframe
+        v-if="hasVideo && isEmbedVideo && landingVideo"
+        :src="landingVideo"
+        class="bg-video"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen>
+      </iframe>
+
+      <!-- Admin'den gelen video dosyası (HTML5 oynatıcı) -->
       <video 
-        v-if="rawVideoLink"
+        v-else-if="hasVideo"
         ref="videoElement"
-        :src="rawVideoLink"
+        :src="landingVideo"
         class="bg-video"
         autoplay 
         loop 
         muted 
         playsinline
-        preload="auto">
+        preload="auto"
+        @error="handleVideoError">
       </video>
       
-      <img v-if="!rawVideoLink && heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
+      <!-- Video yüklenemezse veya yoksa yedek görsel devreye girer -->
+      <img v-else-if="heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
       
       <div class="overlay"></div>
     </div>
@@ -87,8 +105,8 @@ const toggleSound = () => {
         </section>
       </main>
       
-      <!-- MINIMAL SES BUTONU (Tıkladığında anında ve kusursuz ses açar/kapatır) -->
-      <button v-if="rawVideoLink" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
+      <!-- MİNİMAL SES BUTONU (Sol Altta) -->
+      <button v-if="hasVideo && !isEmbedVideo" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
         <svg v-if="isMuted" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
           <line x1="23" y1="9" x2="17" y2="15"></line>
@@ -114,7 +132,6 @@ const toggleSound = () => {
 }
 .bg-image { width: 100%; height: 100%; object-fit: cover; }
 
-/* HTML5 VİDEO TAM EKRAN DOLDURMA (OBJECT-FIT COVER) */
 .bg-video {
   width: 100vw;
   height: 100vh;
@@ -123,7 +140,8 @@ const toggleSound = () => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  pointer-events: none; /* Tıklama algılamaz, böylece durdurma simgesi asla çıkmaz */
+  pointer-events: none;
+  border: none;
 }
 
 .overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%); }
