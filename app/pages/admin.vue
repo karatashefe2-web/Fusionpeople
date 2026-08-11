@@ -64,14 +64,19 @@ const convertToDirectLink = (url) => {
   return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
 }
 
-// Ana sayfa için sessiz arka plan videosu formatı
-const convertToVideoEmbed = (url) => {
+// Ana sayfa için YouTube Sonsuz Döngü Çeviricisi
+const convertToYouTubeBgEmbed = (url) => {
   if (!url) return '';
-  const id = extractDriveId(url);
-  return id ? `https://drive.google.com/file/d/${id}/preview?autoplay=1&mute=1&controls=0&loop=1` : url;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+  const id = match ? match[1] : null;
+  
+  if (id) {
+    // Tüm YouTube kontrollerini gizler, sessizce sonsuza kadar döndürür
+    return `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&rel=0&showinfo=0&modestbranding=1&disablekb=1`;
+  }
+  return url;
 }
 
-// Belgesel sayfası için standart oynatıcı formatı (virüs uyarısını atlar)
 const convertToPlayerEmbed = (url) => {
   if (!url) return '';
   const id = extractDriveId(url);
@@ -119,7 +124,7 @@ const saveAll = async () => {
         pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
         belgesel: convertToPlayerEmbed(documentaryLink.value),
         landing: convertToDirectLink(landingLink.value),
-        landingVideo: convertToVideoEmbed(landingVideoLink.value),
+        landingVideo: convertToYouTubeBgEmbed(landingVideoLink.value),
         siteMetinleri: texts.value
       }
     })
@@ -213,14 +218,14 @@ const saveAll = async () => {
         <section class="admin-section">
           <h2>Homepage Background (Hero)</h2>
           <p style="font-size: 0.85rem; color: #666; margin-bottom: 1rem;">
-            * If you upload a video, it will play behind the texts. The image will act as a backup.
+            * You can paste a YouTube link for a looping background video.
           </p>
           <div class="input-group">
-            <label>Background Video (Drive Link - Optional):</label>
-            <input v-model="landingVideoLink" type="text" class="admin-input" />
+            <label>Background Video (YouTube Link):</label>
+            <input v-model="landingVideoLink" type="text" placeholder="Ex: https://youtube.com/watch?v=..." class="admin-input" />
           </div>
           <div class="input-group">
-            <label>Background Image (Drive Link):</label>
+            <label>Background Image (Drive Link - Fallback):</label>
             <input v-model="landingLink" type="text" class="admin-input" />
           </div>
         </section>

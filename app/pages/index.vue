@@ -24,20 +24,18 @@ onMounted(async () => {
 <template>
   <div class="cinematic-layout">
     
-    <!-- ARKA PLAN MEDYASI (VİDEO VEYA FOTOĞRAF) -->
     <div class="background-media">
       <iframe 
         v-if="heroVideo" 
         :src="heroVideo" 
         class="iframe-video" 
-        allow="autoplay; fullscreen" 
+        allow="autoplay; fullscreen; muted" 
         frameborder="0">
       </iframe>
       <img v-else :src="heroImage" alt="Hero Background" class="bg-image" />
       <div class="overlay"></div>
     </div>
 
-    <!-- ÖN YÜZ METİNLERİ VE İÇERİK -->
     <div class="content-layer">
       <header class="top-bar">
         <div class="logo">{{ texts.siteTitle }}</div>
@@ -67,43 +65,44 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* ANA KAPSAYICI */
-.cinematic-layout { min-height: 100vh; display: flex; flex-direction: column; color: #ffffff; position: relative; }
+.cinematic-layout { min-height: 100vh; display: flex; flex-direction: column; color: #ffffff; position: relative; overflow: hidden; }
 
-/* ARKA PLAN - Sabit ve en geride */
-.background-media { position: fixed; inset: 0; z-index: -1; width: 100vw; height: 100vh; overflow: hidden; background: #000; }
+/* YouTube videosunun ekrana tam oturması için CSS formülü */
+.background-media { 
+  position: fixed; inset: 0; z-index: -1; 
+  width: 100vw; height: 100vh; overflow: hidden; background: #000; 
+  display: flex; justify-content: center; align-items: center;
+}
 .bg-image { width: 100%; height: 100%; object-fit: cover; }
 
-/* VİDEO İFRAME - UI gizlensin diye sınırları taşırdık ve tıklamayı kapattık */
-.iframe-video { width: 150vw; height: 150vh; position: absolute; top: -25vh; left: -25vw; pointer-events: none; }
+.iframe-video { 
+  width: 100vw; height: 56.25vw; /* 16:9 Oranı korur */
+  min-height: 100vh; min-width: 177.77vh; 
+  position: absolute; top: 50%; left: 50%; 
+  transform: translate(-50%, -50%); 
+  pointer-events: none; border: none;
+}
 
-/* KARANLIK FİLTRE - Metinler okunsun diye medya üstüne binen gölge */
 .overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.8) 100%); }
 
-/* ÖN YÜZ - Tüm metinler bu katmanın içinde */
 .content-layer { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; padding: 2rem; }
 
-/* BAŞLIK VE MENÜ */
 .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 1rem; margin-bottom: 3rem; }
 .logo { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
 .date-issue { font-size: 0.85rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
 
-/* İÇERİK IZGARASI */
 .grid-container { display: grid; grid-template-columns: 2fr 1fr; gap: 4rem; flex: 1; }
 .headline { font-size: clamp(4rem, 8vw, 8rem); line-height: 0.9; letter-spacing: -0.04em; margin: 0; }
 .side-content { display: flex; flex-direction: column; justify-content: flex-end; border-left: 1px solid rgba(255,255,255,0.3); padding-left: 4rem; padding-bottom: 2rem; }
 
-/* EDİTÖR NOTU */
 .editorial-note { margin-bottom: 3rem; }
 .editorial-note h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; border-bottom: 1px solid #fff; display: inline-block; }
 .editorial-note p { font-size: 1.3rem; line-height: 1.5; font-weight: 400; color: #e0e0e0; }
 
-/* BUTONLAR */
 .action-links { display: flex; flex-direction: column; gap: 1rem; }
 .ed-btn { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; font-weight: 600; text-transform: uppercase; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; }
 .ed-btn:hover { background: #fff; color: #000; }
 
-/* MOBİL UYUM */
 @media (max-width: 768px) {
   .grid-container { grid-template-columns: 1fr; }
   .side-content { border-left: none; padding-left: 0; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 2rem; }
