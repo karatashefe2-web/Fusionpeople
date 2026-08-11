@@ -1,11 +1,10 @@
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const heroImage = ref('')
-const ytVideoId = ref(null)
+const rawVideoLink = ref(null)
 const isMuted = ref(true)
-const isPlayerReady = ref(false)
-let player = null
+const videoElement = ref(null)
 
 const texts = ref({
   siteTitle: 'FUSION PEOPLE',
@@ -17,71 +16,27 @@ const texts = ref({
   btnVideo: 'WATCH'
 })
 
-const extractYouTubeId = (url) => {
-  if (!url) return null;
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-  return match ? match[1] : null;
+// Google Drive veya doğrudan mp4 linkini HTML5 video formatına çevirir
+const convertToDirectMp4 = (url) => {
+  if (!url) return '';
+  const match = url.match(/[-\w]{25,}/);
+  const id = match ? match[0] : null;
+  return id ? `https://drive.google.com/uc?export=download&id=${id}` : url;
 }
 
 onMounted(async () => {
   const data = await $fetch('/api/icerik')
   if (data.landing) heroImage.value = data.landing
   if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
-  
   if (data.landingVideo) {
-    const ytId = extractYouTubeId(data.landingVideo)
-    if (ytId) {
-      ytVideoId.value = ytId
-      await nextTick()
-      initYouTubeAPI()
-    }
+    rawVideoLink.value = convertToDirectMp4(data.landingVideo)
   }
 })
 
-const initYouTubeAPI = () => {
-  if (window.YT && window.YT.Player) {
-    createPlayer()
-  } else {
-    const tag = document.createElement('script')
-    tag.src = 'https://www.youtube.com/iframe_api'
-    const firstScriptTag = document.getElementsByTagName('script')[0]
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
-    window.onYouTubeIframeAPIReady = () => createPlayer()
-  }
-}
-
-const createPlayer = () => {
-  player = new window.YT.Player('yt-bg-iframe', {
-    events: {
-      onReady: (event) => { 
-        isPlayerReady.value = true
-        event.target.mute()
-        event.target.playVideo()
-        
-        // YouTube API üzerinden gereksiz tüm eklentileri yok et
-        event.target.unloadModule('captions')
-        event.target.unloadModule('cc')
-      },
-      onStateChange: (event) => {
-        // VİDEO BİTTİĞİ AN: YouTube'un kendi loop'u yerine biz 0. saniyeye sarıyoruz!
-        if (event.data === window.YT.PlayerState.ENDED) {
-          event.target.seekTo(0)
-          event.target.playVideo()
-        }
-      }
-    }
-  })
-}
-
 const toggleSound = () => {
-  if (player && typeof player.unMute === 'function') {
-    if (isMuted.value) {
-      player.unMute()
-      player.setVolume(100)
-    } else {
-      player.mute()
-    }
-    isMuted.value = !isMuted.value
+  isMuted.value = !isMuted.value
+  if (videoElement.value) {
+    videoElement.value.muted = isMuted.value
   }
 }
 </script>
@@ -90,17 +45,20 @@ const toggleSound = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
-      <!-- DİKKAT: loop=1 ve playlist parametreleri tamamen SİLİNDİ! -->
-      <iframe
-        v-if="ytVideoId"
-        id="yt-bg-iframe"
-        class="iframe-video yt-scaled"
-        :src="`https://www.youtube.com/embed/${ytVideoId}?autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&rel=0&showinfo=0&modestbranding=1&cc_load_policy=0&iv_load_policy=3&fs=0&disablekb=1`"
-        allow="autoplay; fullscreen"
-        frameborder="0"
-      ></iframe>
+      <!-- HTML5 SAF VİDEO ETİKETİ: Sıfır logo, sıfır kontrol tuşu, kusursuz sonsuz döngü -->
+      <video 
+        v-if="rawVideoLink"
+        ref="videoElement"
+        :src="rawVideoLink"
+        class="bg-video"
+        autoplay 
+        loop 
+        muted 
+        playsinline
+        preload="auto">
+      </video>
       
-      <img v-if="!ytVideoId && heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
+      <img v-if="!rawVideoLink && heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
       
       <div class="overlay"></div>
     </div>
@@ -129,7 +87,8 @@ const toggleSound = () => {
         </section>
       </main>
       
-      <button v-if="ytVideoId && isPlayerReady" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
+      <!-- MINIMAL SES BUTONU (Tıkladığında anında ve kusursuz ses açar/kapatır) -->
+      <button v-if="rawVideoLink" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
         <svg v-if="isMuted" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
           <line x1="23" y1="9" x2="17" y2="15"></line>
@@ -155,15 +114,16 @@ const toggleSound = () => {
 }
 .bg-image { width: 100%; height: 100%; object-fit: cover; }
 
-.iframe-video { 
-  width: 100vw; height: 56.25vw; 
-  min-height: 100vh; min-width: 177.77vh; 
-  position: absolute; top: 50%; left: 50%; 
-  pointer-events: none; border: none;
-}
-
-.yt-scaled {
-  transform: translate(-50%, -50%) scale(1.25);
+/* HTML5 VİDEO TAM EKRAN DOLDURMA (OBJECT-FIT COVER) */
+.bg-video {
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none; /* Tıklama algılamaz, böylece durdurma simgesi asla çıkmaz */
 }
 
 .overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%); }
