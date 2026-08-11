@@ -4,6 +4,7 @@ import { ref, onMounted } from 'vue'
 const heroImage = ref('')
 const landingVideo = ref('')
 const normalizedVideoSrc = ref('')
+const embedFrame = ref(null)
 const isMuted = ref(true)
 const videoElement = ref(null)
 const hasVideo = ref(false)
@@ -39,7 +40,7 @@ const buildEmbedUrl = (url) => {
   const ytId = extractYouTubeId(url)
   if (ytId) {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    return `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId}&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&fs=0&disablekb=1&playsinline=1&origin=${encodeURIComponent(origin)}`
+    return `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId}&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&fs=0&disablekb=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(origin)}`
   }
   const driveId = extractDriveId(url)
   if (driveId) {
@@ -61,7 +62,29 @@ onMounted(async () => {
     normalizedVideoSrc.value = buildEmbedUrl(data.landingVideo)
   }
   if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
+
+  // YouTube videosu otomatik başlamazsa postMessage ile zorla başlat (yedek katmanlar halinde)
+  if (isEmbed.value && landingVideo.value.includes('youtube.com')) {
+    setTimeout(ensureYouTubeAutoPlay, 1000)
+    setTimeout(ensureYouTubeAutoPlay, 2500)
+    setTimeout(ensureYouTubeAutoPlay, 4000)
+  }
 })
+
+// YouTube IFrame API'ye postMessage ile komut gönderir (script yüklemeye gerek yok)
+const sendYouTubeCommand = (func, args = []) => {
+  const iframe = embedFrame.value
+  if (!iframe || !iframe.contentWindow) return
+  iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func, args }), '*')
+}
+
+// Autoplay'i garantiler: önce sessize al (tarayıcı politikası sessiz oynatmaya izin verir),
+// sonra oynatmayı başlat. iframe yüklendiğinde ve birkaç kez daha tekrarlanır.
+const ensureYouTubeAutoPlay = () => {
+  if (!isEmbed.value || !landingVideo.value.includes('youtube.com')) return
+  sendYouTubeCommand('mute')
+  sendYouTubeCommand('playVideo')
+}
 
 const toggleSound = () => {
   isMuted.value = !isMuted.value
@@ -82,11 +105,13 @@ const handleVideoError = () => {
       <!-- YouTube / Drive: temiz arka plan oynatıcı (kontroller, logo, başlık, altyazı kapalı — mp4 hissi) -->
       <iframe
         v-if="hasVideo && isEmbed"
+        ref="embedFrame"
         :src="normalizedVideoSrc"
         class="bg-video-embed"
         frameborder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen>
+        allowfullscreen
+        @load="ensureYouTubeAutoPlay">
       </iframe>
 
       <!-- Doğrudan video dosyası (mp4 vb.) -->
