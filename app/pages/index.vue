@@ -1,11 +1,12 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 
-// Stock köpek fotoğrafını tamamen kaldırdık. 
-// Admin panelinden bir şey yüklenmezse artık simsiyah şık bir ekran bekleyecek.
 const heroImage = ref('')
 const rawVideoLink = ref(null)
+const ytVideoId = ref(null)
 const isMuted = ref(true)
+const isPlayerReady = ref(false)
+let player = null
 
 const texts = ref({
   siteTitle: 'FUSION PEOPLE',
@@ -17,23 +18,82 @@ const texts = ref({
   btnVideo: 'WATCH'
 })
 
+const extractYouTubeId = (url) => {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+  return match ? match[1] : null;
+}
+
 onMounted(async () => {
   const data = await $fetch('/api/icerik')
   if (data.landing) heroImage.value = data.landing
   if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
-  if (data.landingVideo) rawVideoLink.value = data.landingVideo
+  
+  if (data.landingVideo) {
+    rawVideoLink.value = data.landingVideo
+    const ytId = extractYouTubeId(data.landingVideo)
+    
+    if (ytId) {
+      ytVideoId.value = ytId
+      initYouTubeAPI()
+    }
+  }
 })
 
-const activeVideoUrl = computed(() => {
-  if (!rawVideoLink.value) return null
-  let url = rawVideoLink.value
-  if (!isMuted.value) {
-    return url.replace('mute=1', 'mute=0')
+const initYouTubeAPI = () => {
+  if (!window.YT) {
+    const tag = document.createElement('script')
+    tag.src = 'https://www.youtube.com/iframe_api'
+    const firstScriptTag = document.getElementsByTagName('script')[0]
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
+    window.onYouTubeIframeAPIReady = () => createPlayer()
+  } else if (window.YT && window.YT.Player) {
+    createPlayer()
+  } else {
+    setTimeout(createPlayer, 1000)
   }
-  return url.replace('mute=0', 'mute=1')
+}
+
+const createPlayer = () => {
+  player = new window.YT.Player('yt-player-container', {
+    videoId: ytVideoId.value,
+    playerVars: {
+      autoplay: 1,
+      controls: 0,
+      mute: 1,
+      loop: 1,
+      playlist: ytVideoId.value, 
+      rel: 0,
+      showinfo: 0,
+      modestbranding: 1,
+      disablekb: 1,
+      playsinline: 1
+    },
+    events: {
+      onReady: (event) => { 
+        isPlayerReady.value = true
+        event.target.playVideo()
+      }
+    }
+  })
+}
+
+// Drive fallback için ses toggle'ı
+const activeDriveUrl = computed(() => {
+  if (!rawVideoLink.value || ytVideoId.value) return null
+  let url = rawVideoLink.value
+  return isMuted.value ? url.replace('mute=0', 'mute=1') : url.replace('mute=1', 'mute=0')
 })
 
 const toggleSound = () => {
+  if (ytVideoId.value && player && typeof player.unMute === 'function') {
+    if (isMuted.value) {
+      player.unMute()
+      player.setVolume(100)
+    } else {
+      player.mute()
+    }
+  }
   isMuted.value = !isMuted.value
 }
 </script>
@@ -42,14 +102,21 @@ const toggleSound = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
+      <!-- YOUTUBE OYNATICI (CSS Scale Hilesi Uygulandı) -->
+      <div v-show="ytVideoId" id="yt-player-container" class="iframe-video yt-scaled"></div>
+      
+      <!-- DRIVE OYNATICI (Fallback) -->
       <iframe 
-        v-if="activeVideoUrl" 
-        :src="activeVideoUrl" 
+        v-if="!ytVideoId && activeDriveUrl" 
+        :src="activeDriveUrl" 
         class="iframe-video" 
         allow="autoplay; fullscreen" 
         frameborder="0">
       </iframe>
-      <img v-else-if="heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
+      
+      <!-- YEDEK GÖRSEL -->
+      <img v-if="!rawVideoLink && heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
+      
       <div class="overlay"></div>
     </div>
 
@@ -77,8 +144,8 @@ const toggleSound = () => {
         </section>
       </main>
       
-      <!-- MINIMAL SES BUTONU (Sol alta alındı) -->
-      <button v-if="activeVideoUrl" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
+      <!-- MINIMAL SES BUTONU (Sol Altta) -->
+      <button v-if="rawVideoLink && (!ytVideoId || isPlayerReady)" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
         <svg v-if="isMuted" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
           <line x1="23" y1="9" x2="17" y2="15"></line>
@@ -112,6 +179,11 @@ const toggleSound = () => {
   pointer-events: none; border: none;
 }
 
+/* YOUTUBE HİLESİ: Videoyu %135 büyütüp kenardaki logoları görünmez alana iter */
+.yt-scaled {
+  transform: translate(-50%, -50%) scale(1.35);
+}
+
 .overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.8) 100%); }
 
 .content-layer { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; padding: 2rem; }
@@ -136,7 +208,7 @@ const toggleSound = () => {
 .minimal-mute-btn {
   position: absolute;
   bottom: 2.5rem;
-  left: 2.5rem; /* right yerine left yaptık */
+  left: 2.5rem;
   width: 50px;
   height: 50px;
   border-radius: 50%;

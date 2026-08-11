@@ -58,24 +58,34 @@ const extractDriveId = (url) => {
   return match ? match[0] : null;
 }
 
+const extractYouTubeId = (url) => {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+  return match ? match[1] : null;
+}
+
 const convertToDirectLink = (url) => {
   if (!url) return '';
   const id = extractDriveId(url);
   return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
 }
 
-// Drive Arka Plan Formatı (Virüs uyarısız)
-const convertToVideoEmbed = (url) => {
+const convertLandingVideo = (url) => {
   if (!url) return '';
-  const id = extractDriveId(url);
-  return id ? `https://drive.google.com/file/d/${id}/preview?autoplay=1&mute=1&controls=0&loop=1` : url;
+  const ytId = extractYouTubeId(url);
+  if (ytId) {
+    return `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId}&rel=0&showinfo=0&modestbranding=1&disablekb=1`;
+  }
+  const driveId = extractDriveId(url);
+  return driveId ? `https://drive.google.com/file/d/${driveId}/preview?autoplay=1&mute=1&controls=0&loop=1` : url;
 }
 
-// Drive Sinema Formatı (Belgesel için)
 const convertToPlayerEmbed = (url) => {
   if (!url) return '';
-  const id = extractDriveId(url);
-  return id ? `https://drive.google.com/file/d/${id}/preview` : url;
+  const ytId = extractYouTubeId(url);
+  if (ytId) return `https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1&showinfo=0`;
+  const driveId = extractDriveId(url);
+  return driveId ? `https://drive.google.com/file/d/${driveId}/preview` : url;
 }
 
 const fetchData = async () => {
@@ -119,7 +129,7 @@ const saveAll = async () => {
         pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
         belgesel: convertToPlayerEmbed(documentaryLink.value),
         landing: convertToDirectLink(landingLink.value),
-        landingVideo: convertToVideoEmbed(landingVideoLink.value),
+        landingVideo: convertLandingVideo(landingVideoLink.value),
         siteMetinleri: texts.value
       }
     })
@@ -213,7 +223,7 @@ const saveAll = async () => {
         <section class="admin-section">
           <h2>Homepage Background (Hero)</h2>
           <div class="input-group">
-            <label>Background Video (Drive Link):</label>
+            <label>Background Video (YouTube or Drive Link):</label>
             <input v-model="landingVideoLink" type="text" class="admin-input" />
           </div>
           <div class="input-group">
@@ -248,7 +258,7 @@ const saveAll = async () => {
         <section class="admin-section">
           <h2>Documentary / Video Page</h2>
           <div class="input-group">
-            <label>Video (Drive Link):</label>
+            <label>Video (YouTube or Drive Link):</label>
             <input v-model="documentaryLink" type="text" class="admin-input" />
           </div>
         </section>
