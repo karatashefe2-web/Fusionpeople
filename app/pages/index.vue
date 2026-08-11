@@ -3,10 +3,12 @@ import { ref, onMounted } from 'vue'
 
 const heroImage = ref('')
 const landingVideo = ref('')
+const normalizedVideoSrc = ref('')
 const isMuted = ref(true)
 const videoElement = ref(null)
 const hasVideo = ref(false)
-const isEmbedVideo = ref(false)
+const isEmbed = ref(false)
+const isDirectFile = ref(false)
 
 const texts = ref({
   siteTitle: 'FUSION PEOPLE',
@@ -18,9 +20,32 @@ const texts = ref({
   btnVideo: 'WATCH'
 })
 
-const isEmbedUrl = (url) => {
-  if (!url) return false
-  return url.includes('youtube.com/embed') || url.includes('drive.google.com/file/d/')
+const extractYouTubeId = (url) => {
+  if (!url) return null
+  const match = url.match(/(?:youtube\.com\/(?:embed\/|watch\?v=|watch\?.+&v=)|youtu\.be\/)([\w-]{11})/)
+  return match ? match[1] : null
+}
+
+const extractDriveId = (url) => {
+  if (!url) return null
+  const match = url.match(/\/d\/([\w-]{25,})/)
+  return match ? match[1] : null
+}
+
+// Veritabanındaki URL ne olursa olsun, tüm YouTube/Drive oynatıcı arayüzünü
+// (kontroller, logo, başlık, ilişkili videolar, altyazı) kapatan temiz URL üretir.
+const buildEmbedUrl = (url) => {
+  if (!url) return ''
+  const ytId = extractYouTubeId(url)
+  if (ytId) {
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    return `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId}&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&fs=0&disablekb=1&playsinline=1&origin=${encodeURIComponent(origin)}`
+  }
+  const driveId = extractDriveId(url)
+  if (driveId) {
+    return `https://drive.google.com/file/d/${driveId}/preview?autoplay=1&mute=1&controls=0&loop=1`
+  }
+  return url
 }
 
 onMounted(async () => {
@@ -28,8 +53,12 @@ onMounted(async () => {
   if (data.landing) heroImage.value = data.landing
   if (data.landingVideo) {
     landingVideo.value = data.landingVideo
-    isEmbedVideo.value = isEmbedUrl(data.landingVideo)
+    const ytId = extractYouTubeId(data.landingVideo)
+    const driveId = extractDriveId(data.landingVideo)
+    isEmbed.value = Boolean(ytId || driveId)
+    isDirectFile.value = !isEmbed.value
     hasVideo.value = true
+    normalizedVideoSrc.value = buildEmbedUrl(data.landingVideo)
   }
   if (data.siteMetinleri) texts.value = { ...texts.value, ...data.siteMetinleri }
 })
@@ -43,7 +72,6 @@ const toggleSound = () => {
 
 const handleVideoError = () => {
   hasVideo.value = false
-  isEmbedVideo.value = false
 }
 </script>
 
@@ -51,21 +79,21 @@ const handleVideoError = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
-      <!-- Admin panelden girilen YouTube/Drive bağlantısı (embed oynatıcı) -->
+      <!-- YouTube / Drive: temiz arka plan oynatıcı (kontroller, logo, başlık, altyazı kapalı — mp4 hissi) -->
       <iframe
-        v-if="hasVideo && isEmbedVideo && landingVideo"
-        :src="landingVideo"
-        class="bg-video"
+        v-if="hasVideo && isEmbed"
+        :src="normalizedVideoSrc"
+        class="bg-video-embed"
         frameborder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowfullscreen>
       </iframe>
 
-      <!-- Admin'den gelen video dosyası (HTML5 oynatıcı) -->
+      <!-- Doğrudan video dosyası (mp4 vb.) -->
       <video 
-        v-else-if="hasVideo"
+        v-else-if="hasVideo && isDirectFile"
         ref="videoElement"
-        :src="landingVideo"
+        :src="normalizedVideoSrc"
         class="bg-video"
         autoplay 
         loop 
@@ -105,8 +133,8 @@ const handleVideoError = () => {
         </section>
       </main>
       
-      <!-- MİNİMAL SES BUTONU (Sol Altta) -->
-      <button v-if="hasVideo && !isEmbedVideo" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
+      <!-- MİNİMAL SES BUTONU (Sadece doğrudan video dosyalarında — mp4 hissi için) -->
+      <button v-if="hasVideo && isDirectFile" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
         <svg v-if="isMuted" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
           <line x1="23" y1="9" x2="17" y2="15"></line>
@@ -142,6 +170,22 @@ const handleVideoError = () => {
   transform: translate(-50%, -50%);
   pointer-events: none;
   border: none;
+}
+
+/* YouTube/Drive embed'i ekranı tamamen kaplayacak şekilde ölçekler.
+   scale(1.3) + translateY(-20vh): YouTube'un üst başlık çubuğu, logo,
+   alttaki kontrol/progress barı ve ilişkili video önerileri tamamen
+   ekranın dışına iter — saf mp4 görüntüsü hissi verir. */
+.bg-video-embed {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, calc(-50% - 20vh)) scale(1.3);
+  width: max(100vw, calc(100vh * 16 / 9));
+  height: max(100vh, calc(100vw * 9 / 16));
+  border: none;
+  pointer-events: none;
+  background: #000;
 }
 
 .overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%); }
