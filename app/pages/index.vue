@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 
 const heroImage = ref('')
 const ytVideoId = ref(null)
@@ -32,49 +32,40 @@ onMounted(async () => {
     const ytId = extractYouTubeId(data.landingVideo)
     if (ytId) {
       ytVideoId.value = ytId
+      // Video ID'si Vue tarafından DOM'a (ekrana) basılana kadar 1 salise bekle
+      await nextTick()
       initYouTubeAPI()
     }
   }
 })
 
 const initYouTubeAPI = () => {
-  if (!window.YT) {
+  // Eğer YouTube kodu daha önce yüklendiyse (sayfa değiştirip dönüldüyse) direkt çalıştır
+  if (window.YT && window.YT.Player) {
+    createPlayer()
+  } else {
+    // Yüklenmediyse YouTube dosyasını çağır
     const tag = document.createElement('script')
     tag.src = 'https://www.youtube.com/iframe_api'
     const firstScriptTag = document.getElementsByTagName('script')[0]
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
+    
+    // Yükleme bitince bizim ses tuşunu bağla
     window.onYouTubeIframeAPIReady = () => createPlayer()
-  } else if (window.YT && window.YT.Player) {
-    createPlayer()
-  } else {
-    setTimeout(createPlayer, 1000)
   }
 }
 
 const createPlayer = () => {
-  player = new window.YT.Player('yt-player-container', {
-    videoId: ytVideoId.value,
-    playerVars: {
-      autoplay: 1,
-      controls: 0,
-      mute: 1, 
-      loop: 1,
-      playlist: ytVideoId.value, 
-      rel: 0,
-      showinfo: 0,
-      modestbranding: 1,
-      disablekb: 1,
-      playsinline: 1
-    },
+  // Ekrana önceden bastığımız 'yt-bg-iframe' id'li videoya bağlan
+  player = new window.YT.Player('yt-bg-iframe', {
     events: {
       onReady: (event) => { 
         isPlayerReady.value = true
-        // Tarayıcıları autoplay'e zorlamak için kesin komutlar:
         event.target.mute()
         event.target.playVideo()
       },
       onStateChange: (event) => {
-        // Sonsuz döngü bazen takılırsa diye sigorta
+        // Video biterse sonsuz döngüyü zorla tetikle
         if (event.data === window.YT.PlayerState.ENDED) {
           event.target.playVideo()
         }
@@ -91,8 +82,8 @@ const toggleSound = () => {
     } else {
       player.mute()
     }
+    isMuted.value = !isMuted.value
   }
-  isMuted.value = !isMuted.value
 }
 </script>
 
@@ -100,8 +91,15 @@ const toggleSound = () => {
   <div class="cinematic-layout">
     
     <div class="background-media">
-      <!-- 100% YOUTUBE OYNATICI (CSS Scale Hilesi ile logolar gizlendi) -->
-      <div v-show="ytVideoId" id="yt-player-container" class="iframe-video yt-scaled"></div>
+      <!-- VİDEO DOĞRUDAN HTML İLE EKRANA BASILIR (Siyah ekran engellenir) -->
+      <iframe
+        v-if="ytVideoId"
+        id="yt-bg-iframe"
+        class="iframe-video yt-scaled"
+        :src="`https://www.youtube.com/embed/${ytVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytVideoId}&playsinline=1&enablejsapi=1&rel=0&showinfo=0&modestbranding=1`"
+        allow="autoplay; fullscreen"
+        frameborder="0"
+      ></iframe>
       
       <!-- SADECE YEDEK GÖRSEL -->
       <img v-if="!ytVideoId && heroImage" :src="heroImage" alt="Hero Background" class="bg-image" />
@@ -133,7 +131,7 @@ const toggleSound = () => {
         </section>
       </main>
       
-      <!-- MINIMAL SES BUTONU (Sol Altta, Sadece YT yüklenince çıkar) -->
+      <!-- MINIMAL SES BUTONU (Sol Altta) -->
       <button v-if="ytVideoId && isPlayerReady" class="minimal-mute-btn" @click="toggleSound" :title="isMuted ? 'Unmute' : 'Mute'">
         <svg v-if="isMuted" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -193,7 +191,7 @@ const toggleSound = () => {
 .ed-btn { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; font-weight: 600; text-transform: uppercase; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; }
 .ed-btn:hover { background: #fff; color: #000; }
 
-/* MINIMAL SES BUTONU (SOL ALTA TAŞINDI) */
+/* MINIMAL SES BUTONU (Sol Altta) */
 .minimal-mute-btn {
   position: absolute;
   bottom: 2.5rem;
