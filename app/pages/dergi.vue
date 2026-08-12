@@ -6,29 +6,24 @@ const flipbookRef = ref<HTMLElement | null>(null)
 const pages = ref<any[]>([])
 const isLoading = ref(true)
 const isError = ref(false)
-let pageFlipInstance: any = null // Animasyon motorunun çakışmasını önler
+let pageFlipInstance: any = null
 
-// Google Drive linklerinden ID'yi çıkaran yardımcı fonksiyon
 const extractDriveId = (url: string) => {
   if (!url) return null;
   const match = url.match(/[-\w]{25,}/);
   return match ? match[0] : null;
 }
 
-// Ham resmi, doğrudan gösterilebilir formata çevir (GÜNCELLENDİ: Güvenlik Duvarı Delici API)
 const resolveImageLink = (url: string) => {
   const id = extractDriveId(url);
-  // uc?export=view yerine Google'ın Thumbnail API'sini (w2000 = 2000px kalite) kullanıyoruz
   return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w2000` : url;
 }
 
-// Ham PDF linkini, iframe içinde gösterilebilir preview formatına çevir
 const resolvePdfLink = computed(() => {
   const id = extractDriveId(pdfLink.value);
   return id ? `https://drive.google.com/file/d/${id}/preview` : pdfLink.value;
 })
 
-// Sayfaları filtreden geçirirken linkleri de çevir
 const resolvedPages = computed(() => {
   return [...(magazinePages.value || [])]
     .filter((p) => p.link || p.gosterimLink)
@@ -46,7 +41,6 @@ const loadFlipbook = async () => {
   if (resolvedPages.value.length > 0) {
     pages.value = resolvedPages.value
   } else {
-    // Boş durum için 4 yer tutucu sayfa
     pages.value = [
       { id: 1, name: 'Cover', resolvedLink: '' },
       { id: 2, name: 'Page 1', resolvedLink: '' },
@@ -55,24 +49,23 @@ const loadFlipbook = async () => {
     ]
   }
   
-  // PARADOKS ÇÖZÜMÜ: HTML'in (flipbookRef) çizilmesi için 
-  // yükleme ekranını motor çalışmadan HEMEN ÖNCE kapatıyoruz!
   isLoading.value = false
   
-  await nextTick() // Vue'nun DOM'u (Kutuları) çizmesini bekle
+  await nextTick() 
   
   if (pages.value.length > 0 && flipbookRef.value) {
     try {
       if (!pageFlipInstance) {
-        // Motor ilk defa çalışıyorsa
         const { PageFlip } = await import('page-flip')
         pageFlipInstance = new PageFlip(flipbookRef.value, {
           width: 315,
           height: 445,
           size: 'stretch',
-          minWidth: 150,
+          // MOBİL İÇİN DÜZELTME: minWidth ve minHeight artırıldı!
+          // Böylece motor telefonda 2 sayfayı sığdıramayacağını anlayıp tek sayfa (portrait) moduna geçecek.
+          minWidth: 315,
           maxWidth: 1000,
-          minHeight: 212,
+          minHeight: 445,
           maxHeight: 1414,
           showCover: true,
           drawShadow: true,
@@ -81,7 +74,6 @@ const loadFlipbook = async () => {
         })
         pageFlipInstance.loadFromHTML(flipbookRef.value.querySelectorAll('.my-page'))
       } else {
-        // Motor zaten çalışıyorsa ve sayfalar sonradan geldiyse sadece sayfaları güncelle
         pageFlipInstance.updateFromHTML(flipbookRef.value.querySelectorAll('.my-page'))
       }
     } catch (err) {
@@ -94,7 +86,6 @@ onMounted(() => {
   loadFlipbook()
 })
 
-// GÖZCÜ: Veritabanı veriyi sonradan getirirse anında motoru tetikler
 watch(resolvedPages, (newVal) => {
   if (newVal && newVal.length > 0) {
     loadFlipbook()
@@ -111,7 +102,6 @@ watch(resolvedPages, (newVal) => {
     </nav>
 
     <main class="reader-container">
-      <!-- PDF modu: tam ekran PDF görüntüleyici -->
       <iframe
         v-if="uploadType === 'pdf' && pdfLink"
         :src="resolvePdfLink"
@@ -120,7 +110,6 @@ watch(resolvedPages, (newVal) => {
         scrolling="yes"
       ></iframe>
 
-      <!-- Görsel modu: flipbook -->
       <template v-else>
         <div v-if="isLoading" class="status-message">Loading…</div>
         <div v-else-if="isError" class="status-message">Could not load the magazine. Please try again later.</div>
@@ -219,5 +208,15 @@ watch(resolvedPages, (newVal) => {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: #666;
+}
+
+/* MOBİL İÇİN GÜNCEL CSS EKLENTİSİ */
+@media (max-width: 768px) {
+  .reader-container {
+    padding: 0; /* Mobilde dergi ekranı tam doldursun */
+  }
+  .top-nav {
+    padding: 0 1.5rem;
+  }
 }
 </style>
