@@ -61,8 +61,6 @@ const loadFlipbook = async () => {
           width: 315,
           height: 445,
           size: 'stretch',
-          // MOBİL İÇİN DÜZELTME: minWidth ve minHeight artırıldı!
-          // Böylece motor telefonda 2 sayfayı sığdıramayacağını anlayıp tek sayfa (portrait) moduna geçecek.
           minWidth: 315,
           maxWidth: 1000,
           minHeight: 445,
@@ -92,6 +90,19 @@ watch(resolvedPages, (newVal) => {
   }
 }, { deep: true })
 
+// YENİ: Motoru dışarıdan tetikleyen yön butonları fonksiyonları
+const nextPage = () => {
+  if (pageFlipInstance) {
+    pageFlipInstance.flipNext()
+  }
+}
+
+const prevPage = () => {
+  if (pageFlipInstance) {
+    pageFlipInstance.flipPrev()
+  }
+}
+
 </script>
 
 <template>
@@ -113,14 +124,35 @@ watch(resolvedPages, (newVal) => {
       <template v-else>
         <div v-if="isLoading" class="status-message">Loading…</div>
         <div v-else-if="isError" class="status-message">Could not load the magazine. Please try again later.</div>
-        <div v-else-if="hasMagazine" ref="flipbookRef" class="flip-book">
-          <div v-for="(page, index) in pages" :key="page.id" class="my-page">
-            <div :class="['page-content', { cover: index === 0 || index === pages.length - 1 }]">
-              <img v-if="page.resolvedLink" :src="page.resolvedLink" :alt="page.name" />
-              <h2 v-else>{{ page.name }}</h2>
+        
+        <!-- YENİ: Dergi ve butonları bir arada tutan yeni kapsayıcı -->
+        <div v-else-if="hasMagazine" class="magazine-wrapper">
+          <div class="flipbook-container">
+            <div ref="flipbookRef" class="flip-book">
+              <div v-for="(page, index) in pages" :key="page.id" class="my-page">
+                <div :class="['page-content', { cover: index === 0 || index === pages.length - 1 }]">
+                  <img v-if="page.resolvedLink" :src="page.resolvedLink" :alt="page.name" />
+                  <h2 v-else>{{ page.name }}</h2>
+                </div>
+              </div>
             </div>
           </div>
+          
+          <!-- YENİ: Navigasyon (Yön) Okları -->
+          <div class="magazine-controls">
+            <button class="nav-btn" @click="prevPage" aria-label="Previous Page">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+            </button>
+            <button class="nav-btn" @click="nextPage" aria-label="Next Page">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </button>
+          </div>
         </div>
+
         <div v-else class="status-message">{{ texts.emptyMagazine }}</div>
       </template>
     </main>
@@ -170,6 +202,48 @@ watch(resolvedPages, (newVal) => {
   box-sizing: border-box;
   overflow: auto;
 }
+
+/* YENİ EKLENEN KAPSAYICI STİLLERİ */
+.magazine-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+.flipbook-container {
+  flex: 1;
+  width: 100%;
+  position: relative;
+  min-height: 0; /* Flexbox içinde sıkışma olmaması için kritik */
+}
+.magazine-controls {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1rem 0;
+  flex-shrink: 0;
+}
+.nav-btn {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.1);
+  background: #fff;
+  color: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+}
+.nav-btn:hover {
+  background: #111;
+  color: #fff;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+}
+
 .flip-book {
   width: 100%;
   height: 100%;
@@ -210,13 +284,15 @@ watch(resolvedPages, (newVal) => {
   color: #666;
 }
 
-/* MOBİL İÇİN GÜNCEL CSS EKLENTİSİ */
 @media (max-width: 768px) {
   .reader-container {
-    padding: 0; /* Mobilde dergi ekranı tam doldursun */
+    padding: 0;
   }
   .top-nav {
     padding: 0 1.5rem;
+  }
+  .magazine-controls {
+    padding: 1rem 0 1.5rem 0; /* Mobilde alt tarafa biraz daha nefes alma boşluğu */
   }
 }
 </style>
