@@ -8,6 +8,7 @@ const props = defineProps<{
   overlay?: boolean
 }>()
 
+const iframeRef = ref<HTMLIFrameElement | null>(null)
 const isVisible = ref(false)
 
 const extractYouTubeId = (url: string) => {
@@ -29,10 +30,11 @@ const isYouTube = computed(() => !!ytId.value)
 const isDriveEmbed = computed(() => !!driveId.value)
 const isDirectFile = computed(() => !isYouTube.value && !isDriveEmbed.value && !!props.src)
 
+// YOUTUBE İNAT KIRICI LİNK (enablejsapi=1 ve origin mecburidir)
 const embedUrl = computed(() => {
   if (ytId.value) {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    return `https://www.youtube.com/embed/${ytId.value}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId.value}&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&fs=0&disablekb=1&playsinline=1&origin=${encodeURIComponent(origin)}`
+    return `https://www.youtube.com/embed/${ytId.value}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId.value}&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&fs=0&disablekb=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(origin)}`
   }
   return ''
 })
@@ -44,16 +46,26 @@ const driveUrl = computed(() => {
   return ''
 })
 
-// Video yüklendiği an karanlıktan çıkar
-const onVideoReady = () => {
-  isVisible.value = true
+// YOUTUBE KABA KUVVET MOTORU (Zorla başlatır)
+const forcePlayYouTube = () => {
+  isVisible.value = true // Video göründü
+  if (!iframeRef.value || !iframeRef.value.contentWindow) return
+  
+  // Önce %100 sustur, sonra Play bas (Tarayıcıyı kandırma)
+  iframeRef.value.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: [] }), '*')
+  iframeRef.value.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*')
 }
 
 onMounted(() => {
-  // 2 SANİYE KURALI: Safari videoyu dondursa bile sayfa siyah kalmasın diye zorla görünür yapıyoruz.
-  setTimeout(() => {
-    isVisible.value = true
-  }, 2000)
+  if (isYouTube.value) {
+    // Tarayıcı ilk başta engellerse diye 1., 2. ve 5. saniyelerde inatla play komutu yolluyoruz
+    setTimeout(forcePlayYouTube, 500)
+    setTimeout(forcePlayYouTube, 1500)
+    setTimeout(forcePlayYouTube, 3000)
+    setInterval(forcePlayYouTube, 5000) // Nolur nolmaz diye her 5 saniyede bir dürtüklüyoruz
+  } else {
+    setTimeout(() => { isVisible.value = true }, 500)
+  }
 })
 </script>
 
@@ -62,13 +74,14 @@ onMounted(() => {
     
     <iframe
       v-if="isYouTube"
+      ref="iframeRef"
       :src="embedUrl"
-      class="bg-video-embed"
+      class="bg-video-embed yt-hack"
       :class="{ 'is-visible': isVisible }"
       frameborder="0"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
       allowfullscreen
-      @load="onVideoReady">
+      @load="forcePlayYouTube">
     </iframe>
     
     <iframe
@@ -78,8 +91,7 @@ onMounted(() => {
       :class="{ 'is-visible': isVisible }"
       frameborder="0"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen
-      @load="onVideoReady">
+      allowfullscreen>
     </iframe>
     
     <video
@@ -91,11 +103,9 @@ onMounted(() => {
       autoplay
       loop
       muted
-      playsinline
-      @loadeddata="onVideoReady">
+      playsinline>
     </video>
     
-    <!-- YEDEK FOTOĞRAF: Video yüklenene kadar veya Apple videoyu engellerse bu görünür -->
     <img v-if="fallbackImage" :src="fallbackImage" alt="Background Fallback" class="bg-image" />
     
     <div v-if="overlay" class="overlay">
@@ -120,11 +130,15 @@ onMounted(() => {
 
 .bg-video-embed {
   position: absolute; top: 50%; left: 50%; width: 100vw; height: 56.25vw; min-height: 100vh; min-width: 177.77vh;
-  transform: translate(-50%, -50%) scale(1.15);
+  transform: translate(-50%, -50%) scale(1.15); /* Drive ve Mp4 için standart oran */
   border: none; pointer-events: none; z-index: 2;
 }
 
-/* YUMUŞAK GEÇİŞ (Fade-in) EFEKTİ */
+/* YOUTUBE HACK ORANLAMASI (Kırmızı Play'i, logoları dışarı atar, yüzleri bozmaz) */
+.yt-hack {
+  transform: translate(-50%, -50%) scale(1.5); /* Eskisi gibi 2.2 değil, sadece logoları kesecek kadar (1.5) büyütüyoruz */
+}
+
 .bg-video, .bg-video-embed {
   opacity: 0;
   transition: opacity 1.5s ease-in-out;
