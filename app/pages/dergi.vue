@@ -15,10 +15,11 @@ const extractDriveId = (url: string) => {
   return match ? match[0] : null;
 }
 
-// Ham resmi, doğrudan gösterilebilir formata çevir
+// Ham resmi, doğrudan gösterilebilir formata çevir (GÜNCELLENDİ: Güvenlik Duvarı Delici API)
 const resolveImageLink = (url: string) => {
   const id = extractDriveId(url);
-  return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
+  // uc?export=view yerine Google'ın Thumbnail API'sini (w2000 = 2000px kalite) kullanıyoruz
+  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w2000` : url;
 }
 
 // Ham PDF linkini, iframe içinde gösterilebilir preview formatına çevir
