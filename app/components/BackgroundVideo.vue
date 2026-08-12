@@ -11,7 +11,6 @@ const props = defineProps<{
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 const videoElement = ref<HTMLVideoElement | null>(null)
 
-// Link Çözücüler
 const extractYouTubeId = (url: string) => {
   if (!url) return null
   const match = url.match(/(?:youtube\.com\/(?:embed\/|watch\?v=|watch\?.+&v=)|youtu\.be\/)([\w-]{11})/)
@@ -27,12 +26,10 @@ const extractDriveId = (url: string) => {
 const ytId = computed(() => extractYouTubeId(props.src))
 const driveId = computed(() => (!ytId.value ? extractDriveId(props.src) : null))
 
-// Hangi Motorun Çalışacağını Belirleyen Zeka
 const isYouTube = computed(() => !!ytId.value)
 const isDriveEmbed = computed(() => !!driveId.value)
 const isDirectFile = computed(() => !isYouTube.value && !isDriveEmbed.value && !!props.src)
 
-// Özel Oynatıcı Linkleri (Kromsuz, yazısız, sessiz ve autoplay)
 const embedUrl = computed(() => {
   if (ytId.value) {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
@@ -48,7 +45,6 @@ const driveUrl = computed(() => {
   return ''
 })
 
-// YouTube'u zorla başlatmak için API Sinyali
 const forcePlayYouTube = () => {
   if (!iframeRef.value || !iframeRef.value.contentWindow) return
   iframeRef.value.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: [] }), '*')
@@ -67,7 +63,6 @@ onMounted(() => {
 <template>
   <div class="background-media">
     
-    <!-- YOUTUBE SİSTEMİ -->
     <iframe
       v-if="isYouTube"
       ref="iframeRef"
@@ -79,17 +74,15 @@ onMounted(() => {
       @load="forcePlayYouTube">
     </iframe>
     
-    <!-- DRIVE SİSTEMİ -->
     <iframe
       v-else-if="isDriveEmbed"
       :src="driveUrl"
-      class="bg-video-embed drive-fix"
+      class="bg-video-embed"
       frameborder="0"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
       allowfullscreen>
     </iframe>
     
-    <!-- DOĞRUDAN MP4 / VİDEO SİSTEMİ -->
     <video
       v-else-if="isDirectFile"
       ref="videoElement"
@@ -102,10 +95,8 @@ onMounted(() => {
       playsinline>
     </video>
     
-    <!-- HİÇBİRİ YOKSA FOTOĞRAF -->
     <img v-else-if="fallbackImage" :src="fallbackImage" alt="Background Fallback" class="bg-image" />
     
-    <!-- SİNEMATİK SİYAH EFEKTLER (Overlay) -->
     <div v-if="overlay" class="overlay">
       <div v-if="isYouTube" class="chrome-top"></div>
       <div v-if="isYouTube" class="chrome-bottom"></div>
@@ -132,16 +123,19 @@ onMounted(() => {
   pointer-events: none; border: none;
 }
 
-/* YOUTUBE HİLESİ: Yazıları ekran dışına itmek için devasa (2.2) yapıyoruz */
+/* YENİ NESİL KUSURSUZ ORANLAMA MANTIĞI */
 .bg-video-embed {
-  position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-  transform: translateY(-55%) scale(2.2); border: none; pointer-events: none; background: #000;
-}
-
-/* DRIVE HİLESİ: Hafifçe büyütüyoruz ki kenarlıklar gitsin */
-.drive-fix {
-  transform: translate(-50%, -50%) scale(1.15);
-  top: 50%; left: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100vw;
+  height: 56.25vw; /* Tam 16:9 Sinematik Oran */
+  min-height: 100vh;
+  min-width: 177.77vh; /* Tam 16:9 Sinematik Oran */
+  transform: translate(-50%, -50%) scale(1.15); /* Eski 2.2x zoom çöpe atıldı! Sadece UI kapatacak kadar ufak bi esneme. */
+  border: none;
+  pointer-events: none;
+  background: #000;
 }
 
 .overlay {
