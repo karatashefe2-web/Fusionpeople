@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, computed, watch } from 'vue'
+import { ref, shallowRef, onMounted, nextTick, computed, watch } from 'vue'
 const { texts, magazinePages, pdfLink, uploadType } = useSiteContent()
 
 const flipbookRef = ref<HTMLElement | null>(null)
 const pages = ref<any[]>([])
 const isLoading = ref(true)
 const isError = ref(false)
-let pageFlipInstance: any = null
+
+// Vue'nun motoru unutmaması için 'shallowRef' kullanıyoruz!
+const pageFlipInstance = shallowRef<any>(null)
 
 const extractDriveId = (url: string) => {
   if (!url) return null;
@@ -55,9 +57,9 @@ const loadFlipbook = async () => {
   
   if (pages.value.length > 0 && flipbookRef.value) {
     try {
-      if (!pageFlipInstance) {
+      if (!pageFlipInstance.value) {
         const { PageFlip } = await import('page-flip')
-        pageFlipInstance = new PageFlip(flipbookRef.value, {
+        pageFlipInstance.value = new PageFlip(flipbookRef.value, {
           width: 315,
           height: 445,
           size: 'stretch',
@@ -70,9 +72,9 @@ const loadFlipbook = async () => {
           usePortrait: true,
           mobileScrollSupport: false
         })
-        pageFlipInstance.loadFromHTML(flipbookRef.value.querySelectorAll('.my-page'))
+        pageFlipInstance.value.loadFromHTML(flipbookRef.value.querySelectorAll('.my-page'))
       } else {
-        pageFlipInstance.updateFromHTML(flipbookRef.value.querySelectorAll('.my-page'))
+        pageFlipInstance.value.updateFromHTML(flipbookRef.value.querySelectorAll('.my-page'))
       }
     } catch (err) {
       isError.value = true
@@ -90,16 +92,16 @@ watch(resolvedPages, (newVal) => {
   }
 }, { deep: true })
 
-// YENİ: Motoru dışarıdan tetikleyen yön butonları fonksiyonları
+// Motor tetikleyicilerimiz shallowRef (pageFlipInstance.value) üzerinden sorunsuz çalışacak
 const nextPage = () => {
-  if (pageFlipInstance) {
-    pageFlipInstance.flipNext()
+  if (pageFlipInstance.value) {
+    pageFlipInstance.value.flipNext()
   }
 }
 
 const prevPage = () => {
-  if (pageFlipInstance) {
-    pageFlipInstance.flipPrev()
+  if (pageFlipInstance.value) {
+    pageFlipInstance.value.flipPrev()
   }
 }
 
@@ -125,7 +127,6 @@ const prevPage = () => {
         <div v-if="isLoading" class="status-message">Loading…</div>
         <div v-else-if="isError" class="status-message">Could not load the magazine. Please try again later.</div>
         
-        <!-- YENİ: Dergi ve butonları bir arada tutan yeni kapsayıcı -->
         <div v-else-if="hasMagazine" class="magazine-wrapper">
           <div class="flipbook-container">
             <div ref="flipbookRef" class="flip-book">
@@ -138,7 +139,6 @@ const prevPage = () => {
             </div>
           </div>
           
-          <!-- YENİ: Navigasyon (Yön) Okları -->
           <div class="magazine-controls">
             <button class="nav-btn" @click="prevPage" aria-label="Previous Page">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -203,7 +203,6 @@ const prevPage = () => {
   overflow: auto;
 }
 
-/* YENİ EKLENEN KAPSAYICI STİLLERİ */
 .magazine-wrapper {
   display: flex;
   flex-direction: column;
@@ -214,14 +213,18 @@ const prevPage = () => {
   flex: 1;
   width: 100%;
   position: relative;
-  min-height: 0; /* Flexbox içinde sıkışma olmaması için kritik */
+  min-height: 0;
 }
+
+/* YENİ: Gölge motorunu delip butonları kesin tıklanabilir yapmak için z-index ve position eklendi */
 .magazine-controls {
   display: flex;
   justify-content: center;
   gap: 2rem;
   padding: 1rem 0;
   flex-shrink: 0;
+  position: relative;
+  z-index: 50; 
 }
 .nav-btn {
   width: 50px;
@@ -236,6 +239,7 @@ const prevPage = () => {
   cursor: pointer;
   box-shadow: 0 4px 10px rgba(0,0,0,0.05);
   transition: all 0.3s ease;
+  pointer-events: auto; /* Kesin tıklanabilirlik */
 }
 .nav-btn:hover {
   background: #111;
@@ -292,7 +296,7 @@ const prevPage = () => {
     padding: 0 1.5rem;
   }
   .magazine-controls {
-    padding: 1rem 0 1.5rem 0; /* Mobilde alt tarafa biraz daha nefes alma boşluğu */
+    padding: 1rem 0 1.5rem 0;
   }
 }
 </style>
