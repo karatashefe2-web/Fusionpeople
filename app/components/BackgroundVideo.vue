@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 
 const props = defineProps<{
   src: string
@@ -8,8 +8,9 @@ const props = defineProps<{
   overlay?: boolean
 }>()
 
-const iframeRef = ref<HTMLIFrameElement | null>(null)
-const isVisible = ref(false)
+const ytContainer = ref<HTMLElement | null>(null)
+const isYtPlaying = ref(false)
+let ytPlayer: any = null
 
 const extractYouTubeId = (url: string) => {
   if (!url) return null
@@ -30,12 +31,10 @@ const isYouTube = computed(() => !!ytId.value)
 const isDriveEmbed = computed(() => !!driveId.value)
 const isDirectFile = computed(() => !isYouTube.value && !isDriveEmbed.value && !!props.src)
 
-// YOUTUBE İNAT KIRICI LİNK (enablejsapi=1 ve origin mecburidir)
-const embedUrl = computed(() => {
-  if (ytId.value) {
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    return `https://www.youtube.com/embed/${ytId.value}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytId.value}&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&fs=0&disablekb=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(origin)}`
-  }
+// AKILLI KAPAK FOTOĞRAFI: Admin resim yüklememişse bile YouTube'un HD kapağını otomatik çeker
+const smartFallback = computed(() => {
+  if (props.fallbackImage) return props.fallbackImage
+  if (ytId.value) return `https://img.youtube.com/vi/${ytId.value}/maxresdefault.jpg`
   return ''
 })
 
@@ -46,49 +45,101 @@ const driveUrl = computed(() => {
   return ''
 })
 
-// YOUTUBE KABA KUVVET MOTORU (Zorla başlatır)
-const forcePlayYouTube = () => {
-  isVisible.value = true // Video göründü
-  if (!iframeRef.value || !iframeRef.value.contentWindow) return
-  
-  // Önce %100 sustur, sonra Play bas (Tarayıcıyı kandırma)
-  iframeRef.value.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'mute', args: [] }), '*')
-  iframeRef.value.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*')
+// YOUTUBE RESMİ I-FRAME API MOTORU
+const initYouTubeAPI = () => {
+  if (!isYouTube.value || !ytId.value) return
+
+  const createPlayer = () => {
+    if (!ytContainer.value) return
+    ytPlayer = new (window as any).YT.Player(ytContainer.value, {
+      videoId: ytId.value,
+      playerVars: {
+        autoplay: 1, mute: 1, controls: 0, playsinline: 1, loop: 1,
+        playlist: ytId.value, rel: 0, showinfo: 0, modestbranding: 1,
+        disablekb: 1, fs: 0, cc_load_policy: 0, iv_load_policy: 3
+      },
+      events: {
+        onReady: (event: any) => {
+          event.target.mute()
+          event.target.playVideo()
+        },
+        onStateChange: (event: any) => {
+          // Video "GERÇEKTEN" oynamaya başladığında şeffaflığı kaldır ve göster!
+          if (event.data === 1) { 
+            isYtPlaying.value = true
+          }
+        }
+      }
+    })
+  }
+
+  if ((window as any).YT && (window as any).YT.Player) {
+    createPlayer()
+  } else {
+    if (!document.getElementById('yt-api-script')) {
+      const tag = document.createElement('script')
+      tag.id = 'yt-api-script'
+      tag.src = 'https://www.youtube.com/iframe_api'
+      const firstScriptTag = document.getElementsByTagName('script')[0]
+      if (firstScriptTag && firstScriptTag.parentNode) {
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
+      } else {
+        document.head.appendChild(tag)
+      }
+    }
+    ;(window as any).onYouTubeIframeAPIReady = () => {
+      createPlayer()
+    }
+  }
 }
 
-onMounted(() => {
-  if (isYouTube.value) {
-    // Tarayıcı ilk başta engellerse diye 1., 2. ve 5. saniyelerde inatla play komutu yolluyoruz
-    setTimeout(forcePlayYouTube, 500)
-    setTimeout(forcePlayYouTube, 1500)
-    setTimeout(forcePlayYouTube, 3000)
-    setInterval(forcePlayYouTube, 5000) // Nolur nolmaz diye her 5 saniyede bir dürtüklüyoruz
-  } else {
-    setTimeout(() => { isVisible.value = true }, 500)
+// GÖRÜNMEZ TETİKLEYİCİ: Kullanıcı ekrana dokunduğu an Safari kilidini açar
+const handleUserInteraction = () => {
+  if (ytPlayer && typeof ytPlayer.playVideo === 'function' && !isYtPlaying.value) {
+    ytPlayer.mute()
+    ytPlayer.playVideo()
   }
+}
+
+watch(ytId, (newId) => {
+  if (newId) {
+    isYtPlaying.value = false
+    nextTick(() => {
+      if (ytPlayer && typeof ytPlayer.destroy === 'function') ytPlayer.destroy()
+      initYouTubeAPI()
+    })
+  }
+})
+
+onMounted(() => {
+  if (isYouTube.value) initYouTubeAPI()
+  
+  // Tüm ekrandaki dokunuşları dinle
+  window.addEventListener('click', handleUserInteraction, { passive: true })
+  window.addEventListener('touchstart', handleUserInteraction, { passive: true })
+  window.addEventListener('scroll', handleUserInteraction, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  if (ytPlayer && typeof ytPlayer.destroy === 'function') ytPlayer.destroy()
+  window.removeEventListener('click', handleUserInteraction)
+  window.removeEventListener('touchstart', handleUserInteraction)
+  window.removeEventListener('scroll', handleUserInteraction)
 })
 </script>
 
 <template>
   <div class="background-media">
     
-    <iframe
-      v-if="isYouTube"
-      ref="iframeRef"
-      :src="embedUrl"
-      class="bg-video-embed yt-hack"
-      :class="{ 'is-visible': isVisible }"
-      frameborder="0"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen
-      @load="forcePlayYouTube">
-    </iframe>
+    <!-- YOUTUBE (Görünmez başlar, oynayınca animasyonla ortaya çıkar) -->
+    <div v-show="isYouTube" class="bg-video-wrapper yt-hack" :class="{ 'is-visible': isYtPlaying }">
+      <div ref="ytContainer"></div>
+    </div>
     
     <iframe
-      v-else-if="isDriveEmbed"
+      v-if="isDriveEmbed"
       :src="driveUrl"
       class="bg-video-embed"
-      :class="{ 'is-visible': isVisible }"
       frameborder="0"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
       allowfullscreen>
@@ -97,16 +148,16 @@ onMounted(() => {
     <video
       v-else-if="isDirectFile"
       :src="src"
-      :poster="poster || fallbackImage"
+      :poster="smartFallback"
       class="bg-video"
-      :class="{ 'is-visible': isVisible }"
       autoplay
       loop
       muted
       playsinline>
     </video>
     
-    <img v-if="fallbackImage" :src="fallbackImage" alt="Background Fallback" class="bg-image" />
+    <!-- AKILLI YEDEK FOTOĞRAF (Siyah ekranı kalıcı olarak bitirir) -->
+    <img v-if="smartFallback" :src="smartFallback" alt="Background Fallback" class="bg-image" />
     
     <div v-if="overlay" class="overlay">
       <div v-if="isYouTube" class="chrome-top"></div>
@@ -120,7 +171,8 @@ onMounted(() => {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; background: #050505;
 }
 
-.bg-image { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; position: absolute; top:0; left:0; z-index: 1; }
+/* Fallback fotoğrafı hep en altta kalır */
+.bg-image { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; position: absolute; top:0; left:0; z-index: 1; }
 
 .bg-video {
   width: 100%; height: 100%; object-fit: cover;
@@ -128,27 +180,29 @@ onMounted(() => {
   pointer-events: none; border: none; z-index: 2;
 }
 
-.bg-video-embed {
+.bg-video-wrapper, .bg-video-embed {
   position: absolute; top: 50%; left: 50%; width: 100vw; height: 56.25vw; min-height: 100vh; min-width: 177.77vh;
-  transform: translate(-50%, -50%) scale(1.15); /* Drive ve Mp4 için standart oran */
-  border: none; pointer-events: none; z-index: 2;
+  transform: translate(-50%, -50%) scale(1.15); border: none; pointer-events: none; z-index: 2;
 }
 
-/* YOUTUBE HACK ORANLAMASI (Kırmızı Play'i, logoları dışarı atar, yüzleri bozmaz) */
+.bg-video-wrapper :deep(iframe) { width: 100%; height: 100%; border: none; pointer-events: none; }
+
+/* KUSURSUZ YOUTUBE ORANLAMASI (Sadece UI'yi dışarı atacak kadar 1.5 zoom) */
 .yt-hack {
-  transform: translate(-50%, -50%) scale(1.5); /* Eskisi gibi 2.2 değil, sadece logoları kesecek kadar (1.5) büyütüyoruz */
+  transform: translate(-50%, -50%) scale(1.5);
 }
 
-.bg-video, .bg-video-embed {
+/* HAYALET MODU */
+.bg-video-wrapper {
   opacity: 0;
-  transition: opacity 1.5s ease-in-out;
+  transition: opacity 1.2s ease-in-out;
 }
-.is-visible {
+.bg-video-wrapper.is-visible {
   opacity: 1;
 }
 
 .overlay {
-  position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.7) 100%);
+  position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%);
   pointer-events: none; z-index: 3;
 }
 
