@@ -1,15 +1,16 @@
-<script setup>
-// Veritabanından verileri sunucu tarafında (SSR) çekiyoruz ki Google botları görebilsin
-const { data } = await useFetch('/api/icerik')
+<script setup lang="ts">
+const { data, error } = await useFetch<any>('/api/icerik')
 
-const seoTitle = data.value?.siteMetinleri?.seoTitle || 'FUSION PEOPLE'
-const seoDesc = data.value?.siteMetinleri?.seoDescription || ''
+const seoTitle = computed(() => data.value?.siteMetinleri?.seoTitle || 'FUSION PEOPLE')
+const seoDesc = computed(
+  () =>
+    data.value?.siteMetinleri?.seoDescription ||
+    'FUSION PEOPLE — a cinematic digital magazine exploring digital culture, design and the modern age.'
+)
 
 useHead({
   title: seoTitle,
-  meta: [
-    { name: 'description', content: seoDesc }
-  ]
+  meta: [{ name: 'description', content: seoDesc }]
 })
 </script>
 
