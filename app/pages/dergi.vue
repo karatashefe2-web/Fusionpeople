@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 const { texts, magazinePages, pdfLink, uploadType } = useSiteContent()
 
 const flipbookRef = ref<HTMLElement | null>(null)
@@ -7,8 +7,34 @@ const pages = ref<any[]>([])
 const isLoading = ref(true)
 const isError = ref(false)
 
-// Sayfaları hazırla: admin panelinde "multi" modda görseller, "pdf" modunda PDF.
-const resolvedPages = computed(() => [...magazinePages.value].filter((p) => p.gosterimLink || p.link))
+// Google Drive linklerinden ID'yi çıkaran yardımcı fonksiyon
+const extractDriveId = (url: string) => {
+  if (!url) return null;
+  const match = url.match(/[-\w]{25,}/);
+  return match ? match[0] : null;
+}
+
+// Ham resmi, doğrudan gösterilebilir formata çevir
+const resolveImageLink = (url: string) => {
+  const id = extractDriveId(url);
+  return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
+}
+
+// Ham PDF linkini, iframe içinde gösterilebilir preview formatına çevir
+const resolvePdfLink = computed(() => {
+  const id = extractDriveId(pdfLink.value);
+  return id ? `https://drive.google.com/file/d/${id}/preview` : pdfLink.value;
+})
+
+// Sayfaları filtreden geçirirken linkleri de çevir (Senin koduna eklendi)
+const resolvedPages = computed(() => {
+  return [...magazinePages.value]
+    .filter((p) => p.link || p.gosterimLink)
+    .map((p) => ({
+      ...p,
+      resolvedLink: resolveImageLink(p.link || p.gosterimLink)
+    }))
+})
 
 const hasMagazine = computed(() => resolvedPages.value.length > 0 || pdfLink.value)
 
@@ -21,10 +47,10 @@ const loadFlipbook = async () => {
     } else {
       // Boş durum için 4 yer tutucu sayfa
       pages.value = [
-        { id: 1, name: 'Cover', gosterimLink: '' },
-        { id: 2, name: 'Page 1', gosterimLink: '' },
-        { id: 3, name: 'Page 2', gosterimLink: '' },
-        { id: 4, name: 'Back Cover', gosterimLink: '' }
+        { id: 1, name: 'Cover', resolvedLink: '' },
+        { id: 2, name: 'Page 1', resolvedLink: '' },
+        { id: 3, name: 'Page 2', resolvedLink: '' },
+        { id: 4, name: 'Back Cover', resolvedLink: '' }
       ]
     }
     await nextTick()
@@ -68,7 +94,7 @@ onMounted(() => {
       <!-- PDF modu: tam ekran PDF görüntüleyici -->
       <iframe
         v-if="uploadType === 'pdf' && pdfLink"
-        :src="pdfLink"
+        :src="resolvePdfLink"
         class="pdf-frame"
         title="Magazine PDF"
         scrolling="yes"
@@ -81,7 +107,7 @@ onMounted(() => {
         <div v-else-if="hasMagazine" ref="flipbookRef" class="flip-book">
           <div v-for="(page, index) in pages" :key="page.id" class="my-page">
             <div :class="['page-content', { cover: index === 0 || index === pages.length - 1 }]">
-              <img v-if="page.gosterimLink || page.link" :src="page.gosterimLink || page.link" :alt="page.name" />
+              <img v-if="page.resolvedLink" :src="page.resolvedLink" :alt="page.name" />
               <h2 v-else>{{ page.name }}</h2>
             </div>
           </div>
