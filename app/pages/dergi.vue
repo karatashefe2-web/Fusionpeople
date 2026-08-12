@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, computed } from 'vue'
+import { ref, onMounted, nextTick, computed, watch } from 'vue'
 const { texts, magazinePages, pdfLink, uploadType } = useSiteContent()
 
 const flipbookRef = ref<HTMLElement | null>(null)
 const pages = ref<any[]>([])
 const isLoading = ref(true)
 const isError = ref(false)
+let pageFlipInstance: any = null // Animasyon motorunun çakışmasını önler
 
 // Google Drive linklerinden ID'yi çıkaran yardımcı fonksiyon
 const extractDriveId = (url: string) => {
@@ -26,9 +27,9 @@ const resolvePdfLink = computed(() => {
   return id ? `https://drive.google.com/file/d/${id}/preview` : pdfLink.value;
 })
 
-// Sayfaları filtreden geçirirken linkleri de çevir (Senin koduna eklendi)
+// Sayfaları filtreden geçirirken linkleri de çevir
 const resolvedPages = computed(() => {
-  return [...magazinePages.value]
+  return [...(magazinePages.value || [])]
     .filter((p) => p.link || p.gosterimLink)
     .map((p) => ({
       ...p,
@@ -39,48 +40,66 @@ const resolvedPages = computed(() => {
 const hasMagazine = computed(() => resolvedPages.value.length > 0 || pdfLink.value)
 
 const loadFlipbook = async () => {
-  isLoading.value = true
   isError.value = false
-  try {
-    if (resolvedPages.value.length > 0) {
-      pages.value = resolvedPages.value
-    } else {
-      // Boş durum için 4 yer tutucu sayfa
-      pages.value = [
-        { id: 1, name: 'Cover', resolvedLink: '' },
-        { id: 2, name: 'Page 1', resolvedLink: '' },
-        { id: 3, name: 'Page 2', resolvedLink: '' },
-        { id: 4, name: 'Back Cover', resolvedLink: '' }
-      ]
+  
+  if (resolvedPages.value.length > 0) {
+    pages.value = resolvedPages.value
+  } else {
+    // Boş durum için 4 yer tutucu sayfa
+    pages.value = [
+      { id: 1, name: 'Cover', resolvedLink: '' },
+      { id: 2, name: 'Page 1', resolvedLink: '' },
+      { id: 3, name: 'Page 2', resolvedLink: '' },
+      { id: 4, name: 'Back Cover', resolvedLink: '' }
+    ]
+  }
+  
+  // PARADOKS ÇÖZÜMÜ: HTML'in (flipbookRef) çizilmesi için 
+  // yükleme ekranını motor çalışmadan HEMEN ÖNCE kapatıyoruz!
+  isLoading.value = false
+  
+  await nextTick() // Vue'nun DOM'u (Kutuları) çizmesini bekle
+  
+  if (pages.value.length > 0 && flipbookRef.value) {
+    try {
+      if (!pageFlipInstance) {
+        // Motor ilk defa çalışıyorsa
+        const { PageFlip } = await import('page-flip')
+        pageFlipInstance = new PageFlip(flipbookRef.value, {
+          width: 315,
+          height: 445,
+          size: 'stretch',
+          minWidth: 150,
+          maxWidth: 1000,
+          minHeight: 212,
+          maxHeight: 1414,
+          showCover: true,
+          drawShadow: true,
+          usePortrait: true,
+          mobileScrollSupport: false
+        })
+        pageFlipInstance.loadFromHTML(flipbookRef.value.querySelectorAll('.my-page'))
+      } else {
+        // Motor zaten çalışıyorsa ve sayfalar sonradan geldiyse sadece sayfaları güncelle
+        pageFlipInstance.updateFromHTML(flipbookRef.value.querySelectorAll('.my-page'))
+      }
+    } catch (err) {
+      isError.value = true
     }
-    await nextTick()
-    if (pages.value.length > 0 && flipbookRef.value) {
-      const { PageFlip } = await import('page-flip')
-      const pageFlip = new PageFlip(flipbookRef.value, {
-        width: 315,
-        height: 445,
-        size: 'stretch',
-        minWidth: 150,
-        maxWidth: 1000,
-        minHeight: 212,
-        maxHeight: 1414,
-        showCover: true,
-        drawShadow: true,
-        usePortrait: true,
-        mobileScrollSupport: false
-      })
-      pageFlip.loadFromHTML(flipbookRef.value.querySelectorAll('.my-page'))
-    }
-  } catch (err) {
-    isError.value = true
-  } finally {
-    isLoading.value = false
   }
 }
 
 onMounted(() => {
   loadFlipbook()
 })
+
+// GÖZCÜ: Veritabanı veriyi sonradan getirirse anında motoru tetikler
+watch(resolvedPages, (newVal) => {
+  if (newVal && newVal.length > 0) {
+    loadFlipbook()
+  }
+}, { deep: true })
+
 </script>
 
 <template>
