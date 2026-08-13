@@ -26,6 +26,8 @@ const login = () => {
   if (enteredPassword.value === VALID_PASSWORD) {
     isLoggedIn.value = true
     localStorage.setItem('adminAccess', 'active')
+    // Sunucu tarafı doğrulama için şifre session boyunca saklanır.
+    sessionStorage.setItem('adminPassword', enteredPassword.value)
     fetchData()
   } else {
     errorMessage.value = 'Incorrect password, please try again.'
@@ -36,6 +38,7 @@ const login = () => {
 const logout = () => {
   isLoggedIn.value = false
   localStorage.removeItem('adminAccess')
+  sessionStorage.removeItem('adminPassword')
   enteredPassword.value = ''
 }
 
@@ -103,9 +106,16 @@ const fetchData = async () => {
 }
 
 onMounted(() => {
-  if (localStorage.getItem('adminAccess') === 'active') {
+  // Oturum şifresi (sessionStorage) olmadan panel açılırsa kayıt yapılamaz;
+  // bu yüzden yeniden login istenir.
+  if (
+    localStorage.getItem('adminAccess') === 'active' &&
+    sessionStorage.getItem('adminPassword')
+  ) {
     isLoggedIn.value = true
     fetchData()
+  } else {
+    localStorage.removeItem('adminAccess')
   }
 })
 
@@ -123,6 +133,7 @@ const saveAll = async () => {
     const res = await $fetch('/api/icerik', {
       method: 'POST',
       body: {
+        adminPassword: sessionStorage.getItem('adminPassword') || '',
         yuklemeTipi: uploadType.value,
         dergi: processedMagazine,
         pdf: pdfId ? `https://drive.google.com/uc?export=download&id=${pdfId}` : pdfLink.value,
@@ -152,7 +163,7 @@ const saveAll = async () => {
         <h2>FUSION MANAGEMENT</h2>
         <p>Enter your password to continue.</p>
         <div class="input-group">
-          <input v-model="enteredPassword" type="password" placeholder="Password" class="admin-input" @keyup.enter="login"/>
+          <input v-model="enteredPassword" type="password" placeholder="Password" class="admin-input" @keyup.enter="login" autofocus/>
         </div>
         <button class="btn-save" @click="login">Log In</button>
         <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
@@ -189,7 +200,7 @@ const saveAll = async () => {
               <input v-model="texts.issueDate" type="text" class="admin-input" />
             </div>
             <div class="input-group full-width">
-              <label>Main Headline (Use &lt;br&gt; for line breaks):</label>
+              <label>Main Headline (Use <br> for line breaks):</label>
               <input v-model="texts.mainHeadline" type="text" class="admin-input" />
             </div>
             <div class="input-group">

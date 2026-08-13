@@ -4,6 +4,16 @@ declare module 'page-flip' {
     constructor(element: HTMLElement, options: Record<string, unknown>)
     loadFromHTML(items: NodeListOf<Element>): void
     loadFromImages(images: string[]): void
+    updateFromHtml(items: NodeListOf<Element>): void
+    updateFromHTML(items: NodeListOf<Element>): void
     getPageCount(): number
+    getCurrentPageIndex(): number
+    getOrientation(): 'portrait' | 'landscape'
+    flipNext(corner?: string): void
+    flipPrev(corner?: string): void
+    turnToPage(page: number): void
+    turnToNextPage(): void
+    turnToPrevPage(): void
+    destroy(): void
   }
 }

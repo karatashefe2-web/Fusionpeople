@@ -1,17 +1,38 @@
 <script setup lang="ts">
 const { texts, belgeselLink } = useSiteContent()
 
-// YouTube/Drive embed ya da doğrudan video dosyası olabilir.
-const isEmbedLink = computed(() => {
-  const url = belgeselLink.value
-  if (!url) return false
-  return url.includes('youtube.com/embed') || url.includes('drive.google.com/file/d/')
+const extractYouTubeId = (url: string) => {
+  if (!url) return null
+  const match = url.match(
+    /(?:youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=)|youtu\.be\/)([\w-]{11})/
+  )
+  return match ? match[1] : null
+}
+
+const extractDriveId = (url: string) => {
+  if (!url) return null
+  const match = url.match(/[-\w]{25,}/)
+  return match ? match[0] : null
+}
+
+const ytId = computed(() => extractYouTubeId(belgeselLink.value))
+const driveId = computed(() => (!ytId.value ? extractDriveId(belgeselLink.value) : null))
+
+// YouTube watch/youtu.be linklerini embed URL'sine çevirir.
+const embedUrl = computed(() => {
+  if (ytId.value) {
+    return `https://www.youtube.com/embed/${ytId.value}?rel=0&modestbranding=1`
+  }
+  if (driveId.value) {
+    return `https://drive.google.com/file/d/${driveId.value}/preview`
+  }
+  return belgeselLink.value
 })
 
 const isDirectFile = computed(() => {
   const url = belgeselLink.value
   if (!url) return false
-  return !isEmbedLink.value
+  return !ytId.value && !driveId.value
 })
 </script>
 
@@ -24,8 +45,8 @@ const isDirectFile = computed(() => {
     <main class="player-wrap">
       <template v-if="belgeselLink">
         <iframe
-          v-if="isEmbedLink"
-          :src="belgeselLink"
+          v-if="embedUrl && !isDirectFile"
+          :src="embedUrl"
           class="video-frame"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           frameborder="0"

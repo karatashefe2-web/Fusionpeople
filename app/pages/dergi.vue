@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { ref, shallowRef, onMounted, nextTick, computed, watch } from 'vue'
+import { ref, shallowRef, onMounted, onBeforeUnmount, nextTick, computed, watch } from 'vue'
 const { texts, magazinePages, pdfLink, uploadType } = useSiteContent()
 
+interface ResolvedPage {
+  id: number
+  name: string
+  link: string
+  gosterimLink?: string
+  resolvedLink: string
+}
+
 const flipbookRef = ref<HTMLElement | null>(null)
-const pages = ref<any[]>([])
+const pages = ref<ResolvedPage[]>([])
 const isLoading = ref(true)
 const isError = ref(false)
 
@@ -26,35 +34,44 @@ const resolvePdfLink = computed(() => {
   return id ? `https://drive.google.com/file/d/${id}/preview` : pdfLink.value;
 })
 
-const resolvedPages = computed(() => {
+const resolvedPages = computed<ResolvedPage[]>(() => {
   return [...(magazinePages.value || [])]
     .filter((p) => p.link || p.gosterimLink)
     .map((p) => ({
       ...p,
-      resolvedLink: resolveImageLink(p.link || p.gosterimLink)
+      resolvedLink: resolveImageLink(p.link || p.gosterimLink || '')
     }))
 })
 
 const hasMagazine = computed(() => resolvedPages.value.length > 0 || pdfLink.value)
 
+const destroyFlipbook = () => {
+  if (pageFlipInstance.value && typeof pageFlipInstance.value.destroy === 'function') {
+    try {
+      pageFlipInstance.value.destroy()
+    } catch {
+      // destroy zaten yok edilmiş olabilir — yut.
+    }
+    pageFlipInstance.value = null
+  }
+}
+
 const loadFlipbook = async () => {
   isError.value = false
-  
-  if (resolvedPages.value.length > 0) {
-    pages.value = resolvedPages.value
-  } else {
-    pages.value = [
-      { id: 1, name: 'Cover', resolvedLink: '' },
-      { id: 2, name: 'Page 1', resolvedLink: '' },
-      { id: 3, name: 'Page 2', resolvedLink: '' },
-      { id: 4, name: 'Back Cover', resolvedLink: '' }
-    ]
+
+  // İçerik yoksa flipbook kurma; boş mesajı template gösterir.
+  if (resolvedPages.value.length === 0) {
+    pages.value = []
+    isLoading.value = false
+    destroyFlipbook()
+    return
   }
-  
+
+  pages.value = resolvedPages.value
   isLoading.value = false
-  
-  await nextTick() 
-  
+
+  await nextTick()
+
   if (pages.value.length > 0 && flipbookRef.value) {
     try {
       if (!pageFlipInstance.value) {
@@ -86,10 +103,14 @@ onMounted(() => {
   loadFlipbook()
 })
 
-watch(resolvedPages, (newVal) => {
-  if (newVal && newVal.length > 0) {
-    loadFlipbook()
-  }
+onBeforeUnmount(() => {
+  destroyFlipbook()
+})
+
+watch(resolvedPages, () => {
+  // İçerik değiştiğinde (boşaldığında dahil) flipbook'u yeniden kur.
+  // loadFlipbook boş içerikte mevcut instance'ı yok edip mesaj gösterir.
+  loadFlipbook()
 }, { deep: true })
 
 // Motor tetikleyicilerimiz shallowRef (pageFlipInstance.value) üzerinden sorunsuz çalışacak
@@ -216,7 +237,7 @@ const prevPage = () => {
   min-height: 0;
 }
 
-/* YENİ: Gölge motorunu delip butonları kesin tıklanabilir yapmak için z-index ve position eklendi */
+/* Gölge motorunu delip butonları kesin tıklanabilir yapmak için z-index ve position eklendi */
 .magazine-controls {
   display: flex;
   justify-content: center;
