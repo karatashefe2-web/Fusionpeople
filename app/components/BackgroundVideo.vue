@@ -68,6 +68,10 @@ const initYouTubeAPI = () => {
           if (event.data === 1) { 
             isYtPlaying.value = true
           }
+          // Tek video loop'u: playlist parametresi olmadan (0 = ENDED)
+          if (event.data === 0 && ytPlayer && typeof ytPlayer.playVideo === 'function') {
+            ytPlayer.playVideo()
+          }
         }
       }
     })
